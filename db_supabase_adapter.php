@@ -192,6 +192,22 @@ class SupabasePdoAdapter {
             return "SELECT column_name AS \"Field\", data_type AS \"Type\", is_nullable AS \"Null\" FROM information_schema.columns WHERE table_schema = 'public' AND table_name = '{$tbl}' AND column_name = '{$col}'";
         }
 
+        // Traducir SUBSTRING_INDEX(str, delim, count) -> split_part(str, delim, count)
+        $sql = preg_replace('/SUBSTRING_INDEX\s*\(\s*(.*?)\s*,\s*(.*?)\s*,\s*(\d+)\s*\)/i', 'split_part($1, $2, $3)', $sql);
+
+        // Traducir GROUP_CONCAT(...) -> string_agg(...)
+        if (stripos($sql, 'GROUP_CONCAT') !== false) {
+            $sql = preg_replace_callback('/GROUP_CONCAT\s*\(\s*(DISTINCT\s+)?(.*?)(?:\s+ORDER\s+BY\s+[^\)\'\"]+?)?(?:\s+SEPARATOR\s+([\'"].*?[\'"]))?\s*\)/is', function($m) {
+                $distinct = !empty($m[1]) ? $m[1] : '';
+                $expr = trim($m[2]);
+                $sep = !empty($m[3]) ? $m[3] : "', '";
+                if ($sep === "'\\n'" || $sep === '"\\n"') {
+                    $sep = "E'\\n'";
+                }
+                return "string_agg({$distinct}({$expr})::text, {$sep})";
+            }, $sql);
+        }
+
         // Traducir ON DUPLICATE KEY UPDATE para areas_materias (UK nombre_materia)
         if (stripos($sql, 'areas_materias') !== false && stripos($sql, 'ON DUPLICATE KEY UPDATE') !== false) {
             $sql = preg_replace('/ON\s+DUPLICATE\s+KEY\s+UPDATE\s+(.*)$/i', 'ON CONFLICT (nombre_materia) DO UPDATE SET $1', $sql);
