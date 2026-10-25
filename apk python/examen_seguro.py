@@ -2476,6 +2476,21 @@ class App:
     def mostrar_bloqueo_pantallas(self, n_monitores):
         """Muestra la pantalla de bloqueo cuando hay múltiples pantallas."""
         self.bloqueo_seguridad_activo = True
+
+        # Si hay usuario activo y examen en curso o seleccionado, reportar al docente
+        try:
+            ex_id = getattr(self, "examen_id_actual", None)
+            est_id = usuario_actual['id'] if (usuario_actual and 'id' in usuario_actual) else None
+            if ex_id and est_id:
+                threading.Thread(target=lambda: selenium_mgr.api_call('notificar_seguridad', {
+                    'examen_id': ex_id,
+                    'estudiante_id': est_id,
+                    'tipo': 'salida_video_externa',
+                    'motivo': f"Bloqueo por seguridad: se detectaron {n_monitores} pantalla(s) / display(s) conectados."
+                }), daemon=True).start()
+        except Exception:
+            pass
+
         frame = self.limpiar_frame()
         frame.configure(bg=COLORS['bg_white'])
 
@@ -2759,6 +2774,17 @@ class App:
                 f"Cierre automatico por seguridad: se detectaron {num_pantallas} "
                 f"dispositivo(s) de salida de video conectados."
             )
+            # Notificar al servidor inmediatamente el evento de seguridad
+            try:
+                selenium_mgr.api_call('notificar_seguridad', {
+                    'examen_id': ex_id,
+                    'estudiante_id': est_id,
+                    'tipo': 'salida_video_externa',
+                    'motivo': motivo_seguridad
+                })
+            except Exception as _e_notif:
+                log(f"Error al notificar seguridad: {_e_notif}")
+
             result = selenium_mgr.api_call('finalizar_examen', {
                 'examen_id': ex_id,
                 'estudiante_id': est_id,

@@ -462,8 +462,8 @@ if (isset($_POST['action'])) {
                 LEFT JOIN usuarios u ON ns.estudiante_id = u.id
                 LEFT JOIN examenes e ON ns.examen_id = e.id
                 WHERE ns.curso_id = $curso_id
-                AND ns.docente_id = $usuario_id
-                AND IFNULL(ns.oculto_docente, 0) = 0
+                AND (ns.docente_id = $usuario_id OR ns.docente_id IS NULL OR ns.docente_id = 0)
+                AND COALESCE(ns.oculto_docente, 0) = 0
                 ORDER BY ns.fecha_creacion DESC
                 LIMIT 500";
         $res = $conn->query($sql);

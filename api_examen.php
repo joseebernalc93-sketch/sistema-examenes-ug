@@ -512,7 +512,7 @@ function obtenerDocentePorCurso($conn, $curso_id) {
             JOIN usuarios u ON uc.usuario_id = u.id
             WHERE uc.curso_id = $curso_id
             AND u.rol IN ('docente','director_carrera','director_area')
-            ORDER BY FIELD(u.rol, 'docente', 'director_carrera', 'director_area'), u.id ASC
+            ORDER BY u.id ASC
             LIMIT 1";
     $res = $conn->query($sql);
     if ($res && $res->num_rows > 0) {
@@ -522,47 +522,34 @@ function obtenerDocentePorCurso($conn, $curso_id) {
 }
 
 function asegurarTablaNotificacionesSeguridad($conn) {
-    $check = $conn->query("SHOW TABLES LIKE 'notificaciones_seguridad_examen'");
-    if ($check && $check->num_rows == 0) {
-        $conn->query("CREATE TABLE `notificaciones_seguridad_examen` (
-            `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-            `docente_id` int(11) NOT NULL,
-            `curso_id` int(11) NOT NULL,
-            `examen_id` int(11) NOT NULL,
-            `estudiante_id` int(11) NOT NULL,
-            `tipo` varchar(80) NOT NULL DEFAULT 'salida_video_externa',
-            `motivo` text NOT NULL,
-            `oculto_docente` tinyint(1) NOT NULL DEFAULT 0,
-            `fecha_creacion` datetime NOT NULL DEFAULT current_timestamp(),
-            PRIMARY KEY (`id`),
-            KEY `idx_notif_docente_fecha` (`docente_id`,`fecha_creacion`),
-            KEY `idx_notif_curso_fecha` (`curso_id`,`fecha_creacion`),
-            KEY `idx_notif_examen` (`examen_id`),
-            KEY `idx_notif_estudiante` (`estudiante_id`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
-    }
-
-    $checkOculto = $conn->query("SHOW COLUMNS FROM notificaciones_seguridad_examen LIKE 'oculto_docente'");
-    if ($checkOculto && $checkOculto->num_rows == 0) {
-        $conn->query("ALTER TABLE notificaciones_seguridad_examen ADD COLUMN oculto_docente TINYINT(1) NOT NULL DEFAULT 0 AFTER motivo");
+    $check = $conn->query("SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'notificaciones_seguridad_examen' LIMIT 1");
+    if (!$check || $check->num_rows == 0) {
+        $conn->query("CREATE TABLE IF NOT EXISTS notificaciones_seguridad_examen (
+            id SERIAL PRIMARY KEY,
+            docente_id INTEGER NOT NULL,
+            curso_id INTEGER NOT NULL,
+            examen_id INTEGER NOT NULL,
+            estudiante_id INTEGER NOT NULL,
+            tipo VARCHAR(80) NOT NULL DEFAULT 'salida_video_externa',
+            motivo TEXT NOT NULL,
+            oculto_docente SMALLINT NOT NULL DEFAULT 0,
+            fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )");
     }
 }
 
 function asegurarTablaAuditoriaLogApi($conn) {
-    $conn->query("CREATE TABLE IF NOT EXISTS `auditoria_log` (
-        `id` int(11) NOT NULL AUTO_INCREMENT,
-        `actor_id` int(11) NOT NULL,
-        `actor_nombre` varchar(150) DEFAULT NULL,
-        `rol_actor` varchar(50) NOT NULL,
-        `accion` varchar(50) NOT NULL,
-        `entidad_afectada` varchar(50) DEFAULT NULL,
-        `id_afectado` int(11) DEFAULT NULL,
-        `detalles` text DEFAULT NULL,
-        `fecha_registro` datetime NOT NULL DEFAULT current_timestamp(),
-        PRIMARY KEY (`id`),
-        KEY `idx_actor` (`actor_id`),
-        KEY `idx_fecha` (`fecha_registro`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    $conn->query("CREATE TABLE IF NOT EXISTS auditoria_log (
+        id SERIAL PRIMARY KEY,
+        actor_id INTEGER NOT NULL,
+        actor_nombre VARCHAR(150) DEFAULT NULL,
+        rol_actor VARCHAR(50) NOT NULL,
+        accion VARCHAR(50) NOT NULL,
+        entidad_afectada VARCHAR(50) DEFAULT NULL,
+        id_afectado INTEGER DEFAULT NULL,
+        detalles TEXT DEFAULT NULL,
+        fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )");
 }
 
 function registrarEventoSeguridadAuditoria($conn, $estudiante_id, $examen_id, $tipo, $motivo) {
@@ -620,7 +607,12 @@ function registrarNotificacionSeguridadExamen($conn, $examen_id, $estudiante_id,
 
     $docente = obtenerDocentePorCurso($conn, $curso_id);
     $docente_id = (int)($docente['id'] ?? 0);
-    if ($docente_id <= 0) return false;
+    if ($docente_id <= 0) {
+        $res_doc = $conn->query("SELECT usuario_id FROM usuario_cursos WHERE curso_id = $curso_id LIMIT 1");
+        if ($res_doc && $r_doc = $res_doc->fetch_assoc()) {
+            $docente_id = (int)$r_doc['usuario_id'];
+        }
+    }
 
     $motivo = trim((string)$motivo);
     if ($motivo === '') {
@@ -633,13 +625,13 @@ function registrarNotificacionSeguridadExamen($conn, $examen_id, $estudiante_id,
     $motivo_safe = $conn->real_escape_string($motivo);
     $tipo_safe = $conn->real_escape_string($tipo);
 
-    // Evitar duplicados por reintentos en una ventana corta.
+    // Evitar duplicados por reintentos en una ventana corta (1 minuto)
     $sql_dup = "SELECT id
                 FROM notificaciones_seguridad_examen
                 WHERE examen_id = $examen_id
                   AND estudiante_id = $estudiante_id
                   AND tipo = '$tipo_safe'
-                  AND fecha_creacion >= (NOW() - INTERVAL 5 MINUTE)
+                  AND fecha_creacion >= (NOW() - INTERVAL '1 MINUTE')
                 ORDER BY id DESC
                 LIMIT 1";
     $res_dup = $conn->query($sql_dup);
@@ -1444,7 +1436,7 @@ switch ($action) {
             }
             $sql_ex = "SELECT mostrar_nota, permitir_revision FROM examenes WHERE id = $examen_id";
             $res_ex = $conn->query($sql_ex);
-            $config = $res_ex->fetch_assoc();
+            $config = ($res_ex && $res_ex->num_rows > 0) ? $res_ex->fetch_assoc() : [];
             
             responder([
                 'success' => true,
@@ -1452,12 +1444,34 @@ switch ($action) {
                 'correctas' => $correctas_count,
                 'total' => $base,
                 'distribucion_usada' => $distribucion_puntajes,
-                'mostrar_nota' => (bool)$config['mostrar_nota'],
-                'permitir_revision' => (bool)$config['permitir_revision']
+                'mostrar_nota' => !empty($config['mostrar_nota']),
+                'permitir_revision' => !empty($config['permitir_revision'])
             ]);
         } else {
             responder(['success' => false, 'error' => 'Error al finalizar'], 500);
         }
+        break;
+
+    // ----------------------------------------
+    // NOTIFICAR SEGURIDAD (APLICATIVO)
+    // ----------------------------------------
+    case 'notificar_seguridad':
+        $examen_id = (int)($datos['examen_id'] ?? 0);
+        $estudiante_id = (int)($datos['estudiante_id'] ?? 0);
+        $motivo = trim((string)($datos['motivo'] ?? ''));
+        $tipo = trim((string)($datos['tipo'] ?? 'salida_video_externa'));
+
+        if ($examen_id <= 0 || $estudiante_id <= 0) {
+            responder(['success' => false, 'error' => 'IDs requeridos'], 400);
+        }
+
+        $ok = registrarNotificacionSeguridadExamen($conn, $examen_id, $estudiante_id, $motivo, $tipo);
+        responder([
+            'success' => true,
+            'registrado' => $ok,
+            'motivo' => $motivo,
+            'tipo' => $tipo
+        ]);
         break;
     
     // ----------------------------------------

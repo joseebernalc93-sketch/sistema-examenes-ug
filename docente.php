@@ -1071,20 +1071,37 @@ function construirResumenParcialesPorEstudiante(exams) {
                     evaluado_primer: false,
                     evaluado_segundo: false,
                     rindiendo_primer: false,
-                    rindiendo_segundo: false
+                    rindiendo_segundo: false,
+                    pausado_primer: false,
+                    pausado_segundo: false,
+                    motivo_seguridad: ''
                 };
             }
 
             const puntaje = Number(it.puntaje_total);
             const estaRindiendo = (puntaje === -1);
-            const evaluado = !estaRindiendo;
+            const tieneAlerta = !!(it.seguridad_motivo && String(it.seguridad_motivo).trim() !== '');
+
+            if (tieneAlerta) {
+                resumen[sid].motivo_seguridad = it.seguridad_motivo;
+            }
 
             if (parcial === 'primer') {
-                if (evaluado) resumen[sid].evaluado_primer = true;
-                else resumen[sid].rindiendo_primer = true;
+                if (tieneAlerta && estaRindiendo) {
+                    resumen[sid].pausado_primer = true;
+                } else if (!estaRindiendo) {
+                    resumen[sid].evaluado_primer = true;
+                } else {
+                    resumen[sid].rindiendo_primer = true;
+                }
             } else {
-                if (evaluado) resumen[sid].evaluado_segundo = true;
-                else resumen[sid].rindiendo_segundo = true;
+                if (tieneAlerta && estaRindiendo) {
+                    resumen[sid].pausado_segundo = true;
+                } else if (!estaRindiendo) {
+                    resumen[sid].evaluado_segundo = true;
+                } else {
+                    resumen[sid].rindiendo_segundo = true;
+                }
             }
         });
     });
@@ -1094,6 +1111,14 @@ function construirResumenParcialesPorEstudiante(exams) {
 function obtenerBadgeEstadoParcial(resumenParcial) {
     if (!resumenParcial) {
         return '<span class="status-badge status-pendiente">Pendiente</span>';
+    }
+
+    const pausado1 = !!resumenParcial.pausado_primer;
+    const pausado2 = !!resumenParcial.pausado_segundo;
+    const motivo = escapeHtml(resumenParcial.motivo_seguridad || 'Alerta de seguridad detectada');
+
+    if (pausado1 || pausado2) {
+        return `<span class="status-badge" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; font-weight:700;" title="${motivo}">⚠️ Examen pausado (revisar notificaciones)</span>`;
     }
 
     const p1 = !!resumenParcial.evaluado_primer;
@@ -2366,7 +2391,19 @@ function abrirIntentos(examenId) {
         h += '<tr><td colspan="5" style="text-align:center; color:#888;">Sin intentos.</td></tr>';
     } else {
         intentos.forEach(i => {
-            let ptj = (i.puntaje_total == -1) ? '<span style="color:#f59e0b">⏳ Rindiendo</span>' : `<span style="color:${parseFloat(i.puntaje_total)<7?'#ef4444':'#10b981'}">${parseFloat(i.puntaje_total).toFixed(2)}</span>`;
+            let ptj = '';
+            if (i.seguridad_motivo && i.puntaje_total == -1) {
+                const mot = escapeHtml(i.seguridad_motivo);
+                ptj = `<span style="background:#fee2e2; color:#b91c1c; font-weight:700; padding:4px 8px; border-radius:6px; border:1px solid #fca5a5; display:inline-block; font-size:12px;" title="${mot}">⚠️ Examen pausado (Seguridad)<br><small style="font-weight:600; color:#991b1b;">${mot}</small></span>`;
+            } else if (i.seguridad_motivo) {
+                const mot = escapeHtml(i.seguridad_motivo);
+                const scoreColor = parseFloat(i.puntaje_total) < 7 ? '#ef4444' : '#10b981';
+                ptj = `<span style="color:${scoreColor}; font-weight:bold;">${parseFloat(i.puntaje_total).toFixed(2)}</span> <span style="background:#fee2e2; color:#b91c1c; font-size:11px; padding:2px 6px; border-radius:4px; margin-left:4px;" title="${mot}">⚠️ Alerta: ${mot}</span>`;
+            } else if (i.puntaje_total == -1) {
+                ptj = '<span style="color:#f59e0b">⏳ Rindiendo</span>';
+            } else {
+                ptj = `<span style="color:${parseFloat(i.puntaje_total)<7?'#ef4444':'#10b981'}">${parseFloat(i.puntaje_total).toFixed(2)}</span>`;
+            }
             h += `<tr>
                 <td>${i.estudiante_nombre}</td>
                 <td>${i.fecha_inicio_real ? i.fecha_inicio_real.substring(0,16) : '--'}</td>
@@ -2486,6 +2523,8 @@ function verNotas(cursoId) {
         let suma = 0;
         let cantidad = 0;
         let rindiendo = false;
+        let pausado = false;
+        let motivoPausado = '';
 
         (listaExamenes || []).forEach(ex => {
             const intentosEx = intentosData[ex.id] || [];
@@ -2493,6 +2532,11 @@ function verNotas(cursoId) {
             if (!intento) return;
 
             const notaRaw = Number(intento.puntaje_total);
+            if (intento.seguridad_motivo && notaRaw === -1) {
+                pausado = true;
+                motivoPausado = intento.seguridad_motivo;
+                return;
+            }
             if (notaRaw === -1) {
                 rindiendo = true;
                 return;
@@ -2506,11 +2550,13 @@ function verNotas(cursoId) {
         });
 
         if (cantidad > 0) return { tipo: 'nota', valor: (suma / cantidad) };
+        if (pausado) return { tipo: 'pausado', motivo: motivoPausado };
         if (rindiendo) return { tipo: 'rindiendo' };
         return { tipo: 'vacio' };
     };
 
     const renderCeldaParcial = (resumen, colorAprobado) => {
+        if (resumen.tipo === 'pausado') return `<span style="color:#b91c1c; font-weight:700;" title="Pausado por seguridad: ${escapeHtml(resumen.motivo || '')}">⚠️ Pausado</span>`;
         if (resumen.tipo === 'rindiendo') return '<span style="color:#f59e0b">⏳</span>';
         if (resumen.tipo === 'nota') {
             const v = resumen.valor;

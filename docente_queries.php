@@ -35,8 +35,22 @@ if ($es_docente) {
             $res_est = $conn->query($sql_est);
             if($res_est) while($r = $res_est->fetch_assoc()) $estudiantes_por_curso[$r['curso_id']][] = $r;
 
-            // 5. INTENTOS/NOTAS
-            $sql_int = "SELECT re.id as resultado_id, re.examen_id, re.estudiante_id, re.puntaje_total, re.fecha_inicio_real, re.fecha_intento, u.nombres, u.nombres AS estudiante_nombre, u.cedula FROM resultados_examen re JOIN usuarios u ON re.estudiante_id = u.id JOIN examenes e ON re.examen_id = e.id WHERE e.curso_id IN ($ids) ORDER BY re.examen_id ASC, TRIM(SUBSTRING_INDEX(u.nombres, ' ', 1)) ASC, u.nombres ASC";
+            // 5. INTENTOS/NOTAS (CON ALERTAS DE SEGURIDAD)
+            $sql_int = "SELECT re.id as resultado_id, re.examen_id, re.estudiante_id, re.puntaje_total, re.fecha_inicio_real, re.fecha_intento, u.nombres, u.nombres AS estudiante_nombre, u.cedula,
+                               (SELECT ns.motivo FROM notificaciones_seguridad_examen ns 
+                                WHERE ns.examen_id = re.examen_id AND ns.estudiante_id = re.estudiante_id AND COALESCE(ns.oculto_docente, 0) = 0 
+                                ORDER BY ns.fecha_creacion DESC LIMIT 1) AS seguridad_motivo,
+                               (SELECT ns.tipo FROM notificaciones_seguridad_examen ns 
+                                WHERE ns.examen_id = re.examen_id AND ns.estudiante_id = re.estudiante_id AND COALESCE(ns.oculto_docente, 0) = 0 
+                                ORDER BY ns.fecha_creacion DESC LIMIT 1) AS seguridad_tipo,
+                               (SELECT ns.fecha_creacion FROM notificaciones_seguridad_examen ns 
+                                WHERE ns.examen_id = re.examen_id AND ns.estudiante_id = re.estudiante_id AND COALESCE(ns.oculto_docente, 0) = 0 
+                                ORDER BY ns.fecha_creacion DESC LIMIT 1) AS seguridad_fecha
+                        FROM resultados_examen re 
+                        JOIN usuarios u ON re.estudiante_id = u.id 
+                        JOIN examenes e ON re.examen_id = e.id 
+                        WHERE e.curso_id IN ($ids) 
+                        ORDER BY re.examen_id ASC, TRIM(SUBSTRING_INDEX(u.nombres, ' ', 1)) ASC, u.nombres ASC";
             $res_int = $conn->query($sql_int);
             if ($res_int) {
                 while($row = $res_int->fetch_assoc()) {
@@ -45,7 +59,9 @@ if ($es_docente) {
                     $duracion_str = "---";
                     if ($inicio && $fin && $row['puntaje_total'] != -1) {
                         $diff = $inicio->diff($fin); $duracion_str = sprintf("%02dh %02dm %02ds", $diff->h + ($diff->days * 24), $diff->i, $diff->s);
-                    } elseif ($row['puntaje_total'] == -1) { $duracion_str = "En progreso"; }
+                    } elseif ($row['puntaje_total'] == -1) { 
+                        $duracion_str = !empty($row['seguridad_motivo']) ? "Pausado (Seguridad)" : "En progreso"; 
+                    }
                     $row['hora_inicio'] = $inicio ? $inicio->format('H:i:s') : '--';
                     $row['hora_fin']    = $fin ? $fin->format('H:i:s') : '--';
                     $row['tiempo_total']= $duracion_str;
@@ -61,8 +77,8 @@ if ($es_docente) {
                           LEFT JOIN usuarios u ON ns.estudiante_id = u.id
                           LEFT JOIN examenes e ON ns.examen_id = e.id
                           WHERE ns.curso_id IN ($ids)
-                          AND ns.docente_id = $usuario_id
-                          AND IFNULL(ns.oculto_docente, 0) = 0
+                          AND (ns.docente_id = $usuario_id OR ns.docente_id IS NULL OR ns.docente_id = 0)
+                          AND COALESCE(ns.oculto_docente, 0) = 0
                           ORDER BY ns.fecha_creacion DESC
                           LIMIT 500";
             $res_notif = $conn->query($sql_notif);
