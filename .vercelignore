@@ -6,3 +6,5 @@ formatos/*.docx
 formatos/*.xlsx
 .git/
 .vscode/
+db.local.php
+*.local.php

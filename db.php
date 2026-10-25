@@ -2,20 +2,33 @@
 // db.php — Conexión a Base de Datos Híbrida Inteligente (MySQL nativo / PostgreSQL Supabase)
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
-// 1. Cargar archivo local de credenciales si existe (desarrollo local)
-$local_config = __DIR__ . '/db.local.php';
-if (file_exists($local_config)) {
-    include $local_config;
+// Helper para leer variables de entorno en cualquier contexto (Vercel, CLI, Apache)
+function get_db_env($key, $default = null) {
+    if (isset($_ENV[$key]) && $_ENV[$key] !== '') return $_ENV[$key];
+    if (isset($_SERVER[$key]) && $_SERVER[$key] !== '') return $_SERVER[$key];
+    $val = getenv($key);
+    if ($val !== false && $val !== '') return $val;
+    return $default;
 }
 
-// 2. Si no están definidas, leer variables de entorno (Vercel / Cloud) o valores predeterminados
-$DB_TYPE = $DB_TYPE ?? (getenv('DB_TYPE') ?: 'mysql');
-$DB_HOST = $DB_HOST ?? (getenv('DB_HOST') ?: 'localhost');
-$DB_USER = $DB_USER ?? (getenv('DB_USER') ?: 'root');
-$DB_PASS = $DB_PASS ?? (getenv('DB_PASS') ?: '');
-$DB_NAME = $DB_NAME ?? (getenv('DB_NAME') ?: 'sistema_examenes_ug');
-$DB_PORT = (int)($DB_PORT ?? (getenv('DB_PORT') ?: 3306));
-$DB_SSL  = isset($DB_SSL) ? (bool)$DB_SSL : (getenv('DB_SSL') === 'true' || getenv('DB_SSL') === '1');
+$is_vercel = !empty(get_db_env('VERCEL'));
+
+// 1. Cargar archivo local de credenciales si existe (únicamente en desarrollo local, nunca en Vercel)
+if (!$is_vercel) {
+    $local_config = __DIR__ . '/db.local.php';
+    if (file_exists($local_config)) {
+        include $local_config;
+    }
+}
+
+// 2. Leer variables de entorno (Vercel / Cloud) o valores predeterminados
+$DB_TYPE = $DB_TYPE ?? get_db_env('DB_TYPE', 'mysql');
+$DB_HOST = $DB_HOST ?? get_db_env('DB_HOST', 'localhost');
+$DB_USER = $DB_USER ?? get_db_env('DB_USER', 'root');
+$DB_PASS = $DB_PASS ?? get_db_env('DB_PASS', '');
+$DB_NAME = $DB_NAME ?? get_db_env('DB_NAME', 'sistema_examenes_ug');
+$DB_PORT = (int)($DB_PORT ?? get_db_env('DB_PORT', 3306));
+$DB_SSL  = isset($DB_SSL) ? (bool)$DB_SSL : (get_db_env('DB_SSL') === 'true' || get_db_env('DB_SSL') === '1');
 
 // Detección automática de Supabase / PostgreSQL
 $es_supabase = (
@@ -24,7 +37,8 @@ $es_supabase = (
     strtolower($DB_TYPE) === 'supabase' ||
     $DB_PORT === 5432 ||
     $DB_PORT === 6543 ||
-    stripos($DB_HOST, 'supabase.co') !== false
+    stripos($DB_HOST, 'supabase.co') !== false ||
+    stripos($DB_HOST, 'supabase.com') !== false
 );
 
 if ($es_supabase) {
@@ -34,7 +48,7 @@ if ($es_supabase) {
     } catch (Throwable $e) {
         ini_set('display_errors', 1);
         error_log('SUPABASE DB ERROR: ' . $e->getMessage());
-        die('⚠ Error al conectar a Supabase (PostgreSQL): ' . $e->getMessage() . '<br>Revisa las variables de entorno DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT en Vercel.');
+        die('⚠ Error al conectar a Supabase (PostgreSQL): ' . $e->getMessage() . '<br>Host: ' . htmlspecialchars($DB_HOST) . ':' . $DB_PORT . '<br>Revisa las variables de entorno DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT en Vercel.');
     }
 } else {
     try {
