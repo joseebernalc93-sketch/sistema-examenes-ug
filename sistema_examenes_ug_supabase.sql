@@ -976,7 +976,7 @@ CREATE TABLE IF NOT EXISTS resultados_examen (
   respuestas_json TEXT DEFAULT NULL,
   orden_opciones_json TEXT DEFAULT NULL,
   distribucion_puntajes_json text DEFAULT NULL,
-  fecha_intento timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  fecha_intento timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP 
 );
 
 INSERT INTO resultados_examen (id, examen_id, estudiante_id, fecha_inicio_real, puntaje_total, orden_preguntas, respuestas_json, orden_opciones_json, distribucion_puntajes_json, fecha_intento) VALUES
