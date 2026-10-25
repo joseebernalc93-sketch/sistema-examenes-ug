@@ -1,4 +1,5 @@
 <?php
+if (ob_get_level() == 0) { ob_start(); }
 // ==========================================
 // 1. CONFIGURACIÓN, SEGURIDAD Y FUNCIONES (CORE)
 // ==========================================
@@ -10,6 +11,30 @@ session_start();
 include "db.php"; // Asegúrate de que db.php exista en el mismo directorio
 
 date_default_timezone_set('America/Guayaquil');
+
+// Helper para obtener directorio de subida compatible con entornos locales y Vercel/serverless
+function obtenerDirectorioUploads($subcarpeta = '') {
+    $dirLocal = __DIR__ . '/uploads/';
+    if (!is_dir($dirLocal)) {
+        @mkdir($dirLocal, 0777, true);
+    }
+    // Si estamos en Vercel o el directorio local no es escribible (sistema de solo lectura de Lambda)
+    if (!empty($_ENV['VERCEL']) || !empty($_SERVER['VERCEL']) || !is_writable($dirLocal)) {
+        $base = rtrim(sys_get_temp_dir(), '/\\') . '/uploads/';
+        if (!is_dir($base)) {
+            @mkdir($base, 0777, true);
+        }
+    } else {
+        $base = $dirLocal;
+    }
+    if ($subcarpeta !== '') {
+        $base .= rtrim($subcarpeta, '/\\') . '/';
+        if (!is_dir($base)) {
+            @mkdir($base, 0777, true);
+        }
+    }
+    return $base;
+}
 
 // --- SEGURIDAD DE SESIÓN ---
 if (!isset($_SESSION["usuario"])) { header("Location: index.php"); exit; }
@@ -184,7 +209,11 @@ function redirigirConMensaje($msg, $curso_id = null) {
     $_SESSION['mensaje_flash'] = $msg;
     $url = basename($_SERVER['PHP_SELF']);
     if ($curso_id) { $url .= "?view_curso=" . intval($curso_id); }
-    header("Location: " . $url);
+    if (!headers_sent()) {
+        header("Location: " . $url);
+    } else {
+        echo "<script>window.location.href='" . addslashes($url) . "';</script>";
+    }
     exit;
 }
 
@@ -273,7 +302,10 @@ if (isset($_GET['download_doc'])) {
     $res = $conn->query($sql_permiso);
 
     if ($res && $row = $res->fetch_assoc()) {
-        $file_path = __DIR__ . '/uploads/examen_' . $eid . '.docx';
+        $file_path = obtenerDirectorioUploads() . 'examen_' . $eid . '.docx';
+        if (!file_exists($file_path)) {
+            $file_path = __DIR__ . '/uploads/examen_' . $eid . '.docx';
+        }
         $original_name = $row['archivo_origen'] ?: 'examen.docx';
         if (file_exists($file_path)) {
             if (ob_get_level()) ob_end_clean();
@@ -1259,12 +1291,16 @@ if ($es_docente && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $fname = $_FILES['archivo_docx']['name']; $tmp = $_FILES['archivo_docx']['tmp_name'];
             $conn->query("INSERT INTO examenes (curso_id, titulo, parcial, fecha_inicio, fecha_fin, inicio_programado, preguntas_secuenciales, duracion_minutos, cant_preguntas_mostrar, mostrar_nota, permitir_revision, archivo_origen, estado) VALUES ($curso, '$tit', '$parcial', '$ini', '$fin', $ini_sql, $sec, $dur, $cant, 1, 1, '$fname', '$estado')");
             $eid = $conn->insert_id;
-            $dir = __DIR__ . '/uploads/'; if (!is_dir($dir)) mkdir($dir, 0755, true);
-            move_uploaded_file($tmp, $dir . 'examen_' . $eid . '.docx');
-            $res = procesarDocx($dir . 'examen_' . $eid . '.docx', $eid, $conn);
+            $dir = obtenerDirectorioUploads();
+            $dest = $dir . 'examen_' . $eid . '.docx';
+            if (!@move_uploaded_file($tmp, $dest)) {
+                @copy($tmp, $dest);
+            }
+            $archivoParaProcesar = file_exists($dest) ? $dest : $tmp;
+            $res = procesarDocx($archivoParaProcesar, $eid, $conn);
             if ($res === true) {
                 registrar_log($usuario_id, $usuario_nombre, 'docente', 'CREAR_EXAMEN', 'Examen', $eid, "$tit ($modo)");
-                redirigirConMensaje("<div class='alert-success'>Examen creado.</div>", $curso);
+                redirigirConMensaje("<div class='alert-success'>Examen creado con éxito.</div>", $curso);
             } else { redirigirConMensaje("<div class='alert-warning'>Creado con advertencia: $res</div>", $curso); }
         }
     }
@@ -1391,11 +1427,13 @@ if ($es_docente && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = (int)$_POST['id_examen']; 
         $cid = obtenerCursoPorExamen($id);
         
-        $f = __DIR__ . '/uploads/examen_' . $id . '.docx'; 
-        if (file_exists($f)) unlink($f);
+        $f = obtenerDirectorioUploads() . 'examen_' . $id . '.docx'; 
+        if (file_exists($f)) @unlink($f);
+        $f2 = __DIR__ . '/uploads/examen_' . $id . '.docx'; 
+        if (file_exists($f2)) @unlink($f2);
         
         $conn->query("DELETE FROM resultados_examen WHERE examen_id=$id");
-        $conn->query("DELETE op FROM opciones_pregunta op INNER JOIN preguntas p ON op.pregunta_id=p.id WHERE p.examen_id=$id");
+        $conn->query("DELETE FROM opciones_pregunta WHERE pregunta_id IN (SELECT id FROM preguntas WHERE examen_id=$id)");
         $conn->query("DELETE FROM preguntas WHERE examen_id=$id");
         $conn->query("DELETE FROM examenes WHERE id=$id");
         
@@ -1422,9 +1460,9 @@ if ($es_docente && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if (isset($_FILES['archivo_aplicacion']) && $_FILES['archivo_aplicacion']['error'] === 0) {
             $ext = strtolower(pathinfo($_FILES['archivo_aplicacion']['name'], PATHINFO_EXTENSION));
             if (in_array($ext, ['exe','zip','msi','rar','7z'])) {
-                $dir = __DIR__ . '/uploads/apps/'; if (!is_dir($dir)) mkdir($dir, 0755, true);
+                $dir = obtenerDirectorioUploads('apps');
                 $new = 'app_docente_' . $usuario_id . '_' . time() . '.' . $ext;
-                if (move_uploaded_file($_FILES['archivo_aplicacion']['tmp_name'], $dir.$new)) {
+                if (@move_uploaded_file($_FILES['archivo_aplicacion']['tmp_name'], $dir.$new) || @copy($_FILES['archivo_aplicacion']['tmp_name'], $dir.$new)) {
                     $conn->query("UPDATE aplicaciones_docente SET activo=0 WHERE docente_id=$usuario_id");
                     $ver = esc($_POST['version_app']); $orig = esc($_FILES['archivo_aplicacion']['name']);
                     $conn->query("INSERT INTO aplicaciones_docente (docente_id, nombre_archivo, nombre_original, version, activo) VALUES ($usuario_id, '$new', '$orig', '$ver', 1)");
@@ -1437,7 +1475,8 @@ if ($es_docente && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $aid = (int)$_POST['app_id'];
         $res = $conn->query("SELECT * FROM aplicaciones_docente WHERE id=$aid AND docente_id=$usuario_id");
         if ($row = $res->fetch_assoc()) {
-            $f = __DIR__ . '/uploads/apps/' . $row['nombre_archivo']; if (file_exists($f)) unlink($f);
+            $f = obtenerDirectorioUploads('apps') . $row['nombre_archivo']; if (file_exists($f)) @unlink($f);
+            $f2 = __DIR__ . '/uploads/apps/' . $row['nombre_archivo']; if (file_exists($f2)) @unlink($f2);
             $conn->query("DELETE FROM aplicaciones_docente WHERE id=$aid");
             redirigirConMensaje("<div class='alert-success'>Aplicación eliminada.</div>");
         }
