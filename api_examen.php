@@ -598,12 +598,18 @@ function registrarEventoSeguridadAuditoria($conn, $estudiante_id, $examen_id, $t
 function registrarNotificacionSeguridadExamen($conn, $examen_id, $estudiante_id, $motivo, $tipo = 'salida_video_externa') {
     $examen_id = (int)$examen_id;
     $estudiante_id = (int)$estudiante_id;
-    if ($examen_id <= 0 || $estudiante_id <= 0) return false;
+    if ($examen_id <= 0 || $estudiante_id <= 0) {
+        $GLOBALS['last_notif_error'] = "examen_id ($examen_id) o estudiante_id ($estudiante_id) inválido";
+        return false;
+    }
 
     asegurarTablaNotificacionesSeguridad($conn);
 
     $curso_id = obtenerCursoPorExamen($conn, $examen_id);
-    if ($curso_id <= 0) return false;
+    if ($curso_id <= 0) {
+        $GLOBALS['last_notif_error'] = "curso no encontrado para examen $examen_id";
+        return false;
+    }
 
     $docente = obtenerDocentePorCurso($conn, $curso_id);
     $docente_id = (int)($docente['id'] ?? 0);
@@ -642,8 +648,11 @@ function registrarNotificacionSeguridadExamen($conn, $examen_id, $estudiante_id,
         VALUES
         ($docente_id, $curso_id, $examen_id, $estudiante_id, '$tipo_safe', '$motivo_safe')";
 
-    $ok = (bool)$conn->query($sql_ins);
-    if (!$ok) return false;
+    $res = $conn->query($sql_ins);
+    if (!$res) {
+        $GLOBALS['last_notif_error'] = "Insert failed: " . $conn->error . " | SQL: " . $sql_ins;
+        return false;
+    }
 
     registrarEventoSeguridadAuditoria($conn, $estudiante_id, $examen_id, $tipo, $motivo);
     return true;
@@ -1470,7 +1479,9 @@ switch ($action) {
             'success' => true,
             'registrado' => $ok,
             'motivo' => $motivo,
-            'tipo' => $tipo
+            'tipo' => $tipo,
+            'error' => $GLOBALS['last_notif_error'] ?? null,
+            'curso_id' => obtenerCursoPorExamen($conn, $examen_id)
         ]);
         break;
     
