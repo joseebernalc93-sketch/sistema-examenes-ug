@@ -2453,8 +2453,14 @@ class App:
             self.root.destroy()
 
     def limpiar_frame(self):
-        self._detener_auto_refresh_examenes()
-        self.detener_mensajeria()
+        try:
+            self._detener_auto_refresh_examenes()
+        except Exception:
+            pass
+        try:
+            self.detener_mensajeria()
+        except Exception:
+            pass
         # Limpiar cache de imágenes
         self.imagenes_cache = []
         
@@ -3283,6 +3289,31 @@ class App:
             self.lbl_cargando.pack(pady=60)
 
         self._cargar_examenes_async()
+        self._programar_auto_refresh_examenes()
+
+    def _programar_auto_refresh_examenes(self):
+        if not getattr(self, '_vista_examenes_activa', False):
+            return
+        if getattr(self, '_auto_refresh_examenes_id', None):
+            try:
+                self.root.after_cancel(self._auto_refresh_examenes_id)
+            except Exception:
+                pass
+        self._auto_refresh_examenes_id = self.root.after(15000, self._auto_refresh_examenes)
+
+    def _auto_refresh_examenes(self):
+        if not getattr(self, '_vista_examenes_activa', False):
+            return
+        self.refrescar_examenes(silent=True)
+
+    def _detener_auto_refresh_examenes(self):
+        self._vista_examenes_activa = False
+        if getattr(self, '_auto_refresh_examenes_id', None):
+            try:
+                self.root.after_cancel(self._auto_refresh_examenes_id)
+            except Exception:
+                pass
+            self._auto_refresh_examenes_id = None
 
     def mostrar_examenes(self):
         self.bloqueo_seguridad_activo = False
