@@ -703,12 +703,38 @@ if (isset($_POST['action'])) {
                           SET puntaje_total = -1 
                           WHERE examen_id = $eid AND estudiante_id = $uid");
 
-            registrar_log($usuario_id, $usuario_nombre, 'docente', 'REANUDAR_EXAMEN', 'Intento', $uid, "$nombre_est | Examen $eid (Reanudado desde donde se quedó)");
+            // Obtener estado de avance para el mensaje informativo
+            $res_prog = $conn->query("SELECT orden_preguntas, respuestas_json, pregunta_actual FROM resultados_examen WHERE examen_id = $eid AND estudiante_id = $uid LIMIT 1");
+            $total_p = 0; $resp_p = 0; $act_p = 1;
+            if ($res_prog && $rProg = $res_prog->fetch_assoc()) {
+                $o_arr = !empty($rProg['orden_preguntas']) ? array_filter(explode(',', $rProg['orden_preguntas'])) : [];
+                $r_arr = !empty($rProg['respuestas_json']) ? json_decode($rProg['respuestas_json'], true) : [];
+                $total_p = count($o_arr);
+                $resp_p = is_array($r_arr) ? count($r_arr) : 0;
+                $act_p = (int)($rProg['pregunta_actual'] ?? 0);
+                if ($act_p <= 0) {
+                    $act_p = $total_p > 0 ? min($total_p, $resp_p + 1) : 1;
+                }
+            }
+
+            registrar_log($usuario_id, $usuario_nombre, 'docente', 'REANUDAR_EXAMEN', 'Intento', $uid, "$nombre_est | Examen $eid (Reanudado en Pregunta #$act_p de $total_p)");
+
+            $mensajeHtml = "El examen de <strong>" . htmlspecialchars($nombre_est) . "</strong> ha sido reanudado exitosamente.<br><br>" .
+                           "<div style='background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:12px; text-align:left; margin:10px 0;'>" .
+                           "<div><strong>Estado actual:</strong> <span style='color:#16a34a; font-weight:700;'>⏳ Rindiendo</span></div>" .
+                           "<div style='margin-top:4px;'><strong>Continuará en:</strong> Pregunta #$act_p de $total_p</div>" .
+                           "<div style='margin-top:4px;'><strong>Respuestas guardadas:</strong> $resp_p respondidas conservadas</div>" .
+                           "</div>" .
+                           "<small style='color:#64748b;'>El estudiante podrá continuar de inmediato sin perder sus respuestas.</small>";
 
             echo json_encode([
                 'success' => true,
                 'tipo' => 'reanudar',
-                'mensaje' => "El examen de $nombre_est ha sido reanudado. Podrá continuar desde donde se quedó."
+                'estudiante_nombre' => $nombre_est,
+                'pregunta_actual' => $act_p,
+                'total_preguntas' => $total_p,
+                'respondidas' => $resp_p,
+                'mensaje' => $mensajeHtml
             ]);
         } else {
             // Reiniciar intento desde el inicio
@@ -721,12 +747,256 @@ if (isset($_POST['action'])) {
 
             registrar_log($usuario_id, $usuario_nombre, 'docente', 'REINICIAR_EXAMEN', 'Intento', $uid, "$nombre_est | Examen $eid (Reiniciado desde el inicio)");
 
+            $mensajeHtml = "El intento de <strong>" . htmlspecialchars($nombre_est) . "</strong> ha sido reiniciado.<br><br>" .
+                           "<div style='background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; padding:12px; text-align:left; margin:10px 0;'>" .
+                           "<div><strong>Estado actual:</strong> <span style='color:#ea580c; font-weight:700;'>↻ Reiniciado (Sin intento)</span></div>" .
+                           "<div style='margin-top:4px;'>Las respuestas previas fueron limpiadas y el estudiante podrá iniciar un nuevo intento desde cero.</div>" .
+                           "</div>";
+
             echo json_encode([
                 'success' => true,
                 'tipo' => 'reiniciar',
-                'mensaje' => "El intento de $nombre_est ha sido reiniciado. Podrá comenzar un nuevo intento desde cero."
+                'estudiante_nombre' => $nombre_est,
+                'mensaje' => $mensajeHtml
             ]);
         }
+        exit;
+    }
+
+    // =========================================
+    // OBTENER INTENTOS DE UN EXAMEN (AJAX)
+    // =========================================
+    if ($_POST['action'] === 'obtener_intentos_examen') {
+        $eid = (int)($_POST['examen_id'] ?? 0);
+        if ($eid <= 0) {
+            echo json_encode(['success' => false, 'error' => 'Examen requerido']);
+            exit;
+        }
+
+        $cid = obtenerCursoPorExamen($eid);
+        $perm = $conn->query("SELECT 1 FROM usuario_cursos WHERE usuario_id = $usuario_id AND curso_id = $cid LIMIT 1");
+        if (!$perm || $perm->num_rows == 0) {
+            echo json_encode(['success' => false, 'error' => 'Sin permiso']);
+            exit;
+        }
+
+        $sql = "SELECT re.id as resultado_id, re.examen_id, re.estudiante_id, re.puntaje_total, re.fecha_inicio_real, re.fecha_intento, u.nombres, u.nombres AS estudiante_nombre, u.cedula,
+                       re.orden_preguntas, re.respuestas_json, re.tiempos_respuestas_json, re.pregunta_actual,
+                       (SELECT ns.motivo FROM notificaciones_seguridad_examen ns 
+                        WHERE ns.examen_id = re.examen_id AND ns.estudiante_id = re.estudiante_id AND COALESCE(ns.oculto_docente, 0) = 0 
+                        ORDER BY ns.fecha_creacion DESC LIMIT 1) AS seguridad_motivo,
+                       (SELECT ns.tipo FROM notificaciones_seguridad_examen ns 
+                        WHERE ns.examen_id = re.examen_id AND ns.estudiante_id = re.estudiante_id AND COALESCE(ns.oculto_docente, 0) = 0 
+                        ORDER BY ns.fecha_creacion DESC LIMIT 1) AS seguridad_tipo,
+                       (SELECT ns.fecha_creacion FROM notificaciones_seguridad_examen ns 
+                        WHERE ns.examen_id = re.examen_id AND ns.estudiante_id = re.estudiante_id AND COALESCE(ns.oculto_docente, 0) = 0 
+                        ORDER BY ns.fecha_creacion DESC LIMIT 1) AS seguridad_fecha
+                FROM resultados_examen re 
+                JOIN usuarios u ON re.estudiante_id = u.id 
+                WHERE re.examen_id = $eid 
+                ORDER BY TRIM(SUBSTRING_INDEX(u.nombres, ' ', 1)) ASC, u.nombres ASC";
+        $res = $conn->query($sql);
+        $intentos = [];
+        if ($res) {
+            while ($row = $res->fetch_assoc()) {
+                $inicio = !empty($row['fecha_inicio_real']) ? new DateTime($row['fecha_inicio_real']) : null;
+                $fin    = !empty($row['fecha_intento']) ? new DateTime($row['fecha_intento']) : null;
+
+                $orden_arr = !empty($row['orden_preguntas']) ? array_filter(explode(',', $row['orden_preguntas'])) : [];
+                $resp_arr = !empty($row['respuestas_json']) ? json_decode($row['respuestas_json'], true) : [];
+                $total_preg = count($orden_arr);
+                $resp_cant = is_array($resp_arr) ? count($resp_arr) : 0;
+                $preg_act = (int)($row['pregunta_actual'] ?? 0);
+                if ($preg_act <= 0) {
+                    $preg_act = $total_preg > 0 ? min($total_preg, $resp_cant + 1) : 1;
+                }
+                $row['total_preguntas'] = $total_preg;
+                $row['respondidas_count'] = $resp_cant;
+                $row['pregunta_actual_num'] = $preg_act;
+
+                $duracion_str = "---";
+                if ($inicio && $fin && $row['puntaje_total'] != -1) {
+                    $diff = $inicio->diff($fin); $duracion_str = sprintf("%02dh %02dm %02ds", $diff->h + ($diff->days * 24), $diff->i, $diff->s);
+                } elseif ($row['puntaje_total'] == -1) { 
+                    $duracion_str = !empty($row['seguridad_motivo']) ? "Pausado (Preg. #$preg_act de $total_preg)" : "Rindiendo (Preg. #$preg_act de $total_preg)"; 
+                }
+                $row['hora_inicio'] = $inicio ? $inicio->format('H:i:s') : '--';
+                $row['hora_fin']    = $fin ? $fin->format('H:i:s') : '--';
+                $row['tiempo_total']= $duracion_str;
+
+                $intentos[] = $row;
+            }
+        }
+
+        echo json_encode(['success' => true, 'intentos' => $intentos]);
+        exit;
+    }
+
+    // =========================================
+    // OBTENER PROGRESO EN VIVO CON TIEMPOS H:i:s
+    // =========================================
+    if ($_POST['action'] === 'obtener_progreso_estudiante') {
+        $eid = (int)($_POST['examen_id'] ?? 0);
+        $uid = (int)($_POST['estudiante_id'] ?? 0);
+
+        if ($eid <= 0 || $uid <= 0) {
+            echo json_encode(['success' => false, 'error' => 'IDs requeridos']);
+            exit;
+        }
+
+        $cid = obtenerCursoPorExamen($eid);
+        $perm = $conn->query("SELECT 1 FROM usuario_cursos WHERE usuario_id = $usuario_id AND curso_id = $cid LIMIT 1");
+        if (!$perm || $perm->num_rows == 0) {
+            echo json_encode(['success' => false, 'error' => 'Sin permiso para este curso']);
+            exit;
+        }
+
+        // Datos del estudiante
+        $resEst = $conn->query("SELECT id, nombres, cedula FROM usuarios WHERE id = $uid LIMIT 1");
+        $estudiante = ($resEst && $rEst = $resEst->fetch_assoc()) ? $rEst : ['id' => $uid, 'nombres' => "Estudiante #$uid", 'cedula' => ''];
+
+        // Datos del examen
+        $resEx = $conn->query("SELECT id, titulo, duracion_minutos, preguntas_secuenciales, estado FROM examenes WHERE id = $eid LIMIT 1");
+        $examen = ($resEx && $rEx = $resEx->fetch_assoc()) ? $rEx : null;
+        if (!$examen) {
+            echo json_encode(['success' => false, 'error' => 'Examen no encontrado']);
+            exit;
+        }
+
+        // Alerta de seguridad activa (si no está oculta por el docente)
+        $resSec = $conn->query("SELECT motivo, tipo, fecha_creacion FROM notificaciones_seguridad_examen WHERE examen_id = $eid AND estudiante_id = $uid AND COALESCE(oculto_docente, 0) = 0 ORDER BY id DESC LIMIT 1");
+        $alertaSec = ($resSec && $resSec->num_rows > 0) ? $resSec->fetch_assoc() : null;
+
+        // Intento del estudiante
+        $resInt = $conn->query("SELECT id, puntaje_total, fecha_inicio_real, fecha_intento, orden_preguntas, respuestas_json, tiempos_respuestas_json, pregunta_actual FROM resultados_examen WHERE examen_id = $eid AND estudiante_id = $uid LIMIT 1");
+        if (!$resInt || $resInt->num_rows == 0) {
+            echo json_encode([
+                'success' => true,
+                'estudiante' => $estudiante,
+                'examen' => $examen,
+                'estado' => 'sin_intento',
+                'estado_texto' => 'Aún no ha iniciado el examen',
+                'pregunta_actual_num' => 0,
+                'total_preguntas' => 0,
+                'respondidas_count' => 0,
+                'porcentaje' => 0,
+                'preguntas' => []
+            ]);
+            exit;
+        }
+
+        $intento = $resInt->fetch_assoc();
+        $orden_str = trim((string)($intento['orden_preguntas'] ?? ''));
+        $orden_arr = ($orden_str !== '') ? array_filter(explode(',', $orden_str)) : [];
+        $respuestas = !empty($intento['respuestas_json']) ? (json_decode($intento['respuestas_json'], true) ?: []) : [];
+        $tiempos = !empty($intento['tiempos_respuestas_json']) ? (json_decode($intento['tiempos_respuestas_json'], true) ?: []) : [];
+
+        $total_preg = count($orden_arr);
+        $resp_count = count($respuestas);
+        $preg_actual = (int)($intento['pregunta_actual'] ?? 0);
+        if ($preg_actual <= 0) {
+            $preg_actual = $total_preg > 0 ? min($total_preg, $resp_count + 1) : 1;
+        }
+
+        $puntaje = (float)$intento['puntaje_total'];
+        $estado = 'rindiendo';
+        $estado_texto = '⏳ Rindiendo examen en vivo';
+        $motivo_pausa = '';
+
+        if ($puntaje != -1) {
+            $estado = 'finalizado';
+            $estado_texto = '🏁 Examen finalizado (Calificación: ' . number_format($puntaje, 2) . ')';
+        } elseif ($alertaSec) {
+            $estado = 'pausado';
+            $motivo_pausa = $alertaSec['motivo'] ?: 'Pausado por seguridad o imprevisto técnico';
+            $estado_texto = '⚠️ Examen pausado (' . $motivo_pausa . ')';
+        }
+
+        // Cargar enunciados y opciones de las preguntas asignadas
+        $preguntas_detalladas = [];
+        if (!empty($orden_arr)) {
+            $ids_safe = implode(',', array_map('intval', $orden_arr));
+            
+            // Preguntas
+            $resP = $conn->query("SELECT id, enunciado, imagen, valor_puntos FROM preguntas WHERE id IN ($ids_safe)");
+            $preg_map = [];
+            if ($resP) {
+                while ($p = $resP->fetch_assoc()) {
+                    $preg_map[$p['id']] = $p;
+                }
+            }
+
+            // Opciones
+            $resO = $conn->query("SELECT id, pregunta_id, contenido, es_correcta FROM opciones_pregunta WHERE pregunta_id IN ($ids_safe)");
+            $opc_map = [];
+            if ($resO) {
+                while ($op = $resO->fetch_assoc()) {
+                    $opc_map[$op['id']] = $op;
+                }
+            }
+
+            $num = 1;
+            foreach ($orden_arr as $pid) {
+                $pid = (int)$pid;
+                $pData = $preg_map[$pid] ?? null;
+                $enunciado = $pData ? trim(strip_tags($pData['enunciado'])) : "Pregunta #$pid";
+                if (function_exists('mb_substr') && mb_strlen($enunciado) > 90) {
+                    $enunciado_corto = mb_substr($enunciado, 0, 87) . '...';
+                } elseif (strlen($enunciado) > 90) {
+                    $enunciado_corto = substr($enunciado, 0, 87) . '...';
+                } else {
+                    $enunciado_corto = $enunciado;
+                }
+
+                $esta_respondida = isset($respuestas[$pid]);
+                $opc_sel_id = $esta_respondida ? (int)$respuestas[$pid] : null;
+                $opc_sel_texto = '';
+                if ($opc_sel_id && isset($opc_map[$opc_sel_id])) {
+                    $opc_sel_texto = trim(strip_tags($opc_map[$opc_sel_id]['contenido']));
+                }
+
+                $tiempo_raw = $tiempos[$pid] ?? null;
+                $hora_exacta = '';
+                $fecha_completa = '';
+                if (!empty($tiempo_raw)) {
+                    $tObj = new DateTime($tiempo_raw);
+                    $hora_exacta = $tObj->format('H:i:s');
+                    $fecha_completa = $tObj->format('d/m/Y H:i:s');
+                }
+
+                $es_actual = ($num === $preg_actual && $estado !== 'finalizado');
+
+                $preguntas_detalladas[] = [
+                    'numero' => $num,
+                    'pregunta_id' => $pid,
+                    'enunciado' => $enunciado_corto,
+                    'enunciado_completo' => $enunciado,
+                    'tiene_imagen' => !empty($pData['imagen']),
+                    'respondida' => $esta_respondida,
+                    'opcion_id' => $opc_sel_id,
+                    'opcion_texto' => $opc_sel_texto,
+                    'hora_exacta' => $hora_exacta,
+                    'fecha_completa' => $fecha_completa,
+                    'es_actual' => $es_actual
+                ];
+                $num++;
+            }
+        }
+
+        echo json_encode([
+            'success' => true,
+            'estudiante' => $estudiante,
+            'examen' => $examen,
+            'estado' => $estado,
+            'estado_texto' => $estado_texto,
+            'motivo_pausa' => $motivo_pausa,
+            'fecha_inicio_real' => $intento['fecha_inicio_real'],
+            'pregunta_actual_num' => $preg_actual,
+            'total_preguntas' => $total_preg,
+            'respondidas_count' => $resp_count,
+            'porcentaje' => $total_preg > 0 ? round(($resp_count / $total_preg) * 100, 1) : 0,
+            'preguntas' => $preguntas_detalladas
+        ]);
         exit;
     }
 

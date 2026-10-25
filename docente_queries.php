@@ -35,8 +35,9 @@ if ($es_docente) {
             $res_est = $conn->query($sql_est);
             if($res_est) while($r = $res_est->fetch_assoc()) $estudiantes_por_curso[$r['curso_id']][] = $r;
 
-            // 5. INTENTOS/NOTAS (CON ALERTAS DE SEGURIDAD)
+            // 5. INTENTOS/NOTAS (CON ALERTAS DE SEGURIDAD Y PROGRESO EN VIVO)
             $sql_int = "SELECT re.id as resultado_id, re.examen_id, re.estudiante_id, re.puntaje_total, re.fecha_inicio_real, re.fecha_intento, u.nombres, u.nombres AS estudiante_nombre, u.cedula,
+                               re.orden_preguntas, re.respuestas_json, re.tiempos_respuestas_json, re.pregunta_actual,
                                (SELECT ns.motivo FROM notificaciones_seguridad_examen ns 
                                 WHERE ns.examen_id = re.examen_id AND ns.estudiante_id = re.estudiante_id AND COALESCE(ns.oculto_docente, 0) = 0 
                                 ORDER BY ns.fecha_creacion DESC LIMIT 1) AS seguridad_motivo,
@@ -56,11 +57,25 @@ if ($es_docente) {
                 while($row = $res_int->fetch_assoc()) {
                     $inicio = !empty($row['fecha_inicio_real']) ? new DateTime($row['fecha_inicio_real']) : null;
                     $fin    = !empty($row['fecha_intento']) ? new DateTime($row['fecha_intento']) : null;
+                    
+                    // Cálculo de preguntas y avance
+                    $orden_arr = !empty($row['orden_preguntas']) ? array_filter(explode(',', $row['orden_preguntas'])) : [];
+                    $resp_arr = !empty($row['respuestas_json']) ? json_decode($row['respuestas_json'], true) : [];
+                    $total_preg = count($orden_arr);
+                    $resp_cant = is_array($resp_arr) ? count($resp_arr) : 0;
+                    $preg_act = (int)($row['pregunta_actual'] ?? 0);
+                    if ($preg_act <= 0) {
+                        $preg_act = $total_preg > 0 ? min($total_preg, $resp_cant + 1) : 1;
+                    }
+                    $row['total_preguntas'] = $total_preg;
+                    $row['respondidas_count'] = $resp_cant;
+                    $row['pregunta_actual_num'] = $preg_act;
+
                     $duracion_str = "---";
                     if ($inicio && $fin && $row['puntaje_total'] != -1) {
                         $diff = $inicio->diff($fin); $duracion_str = sprintf("%02dh %02dm %02ds", $diff->h + ($diff->days * 24), $diff->i, $diff->s);
                     } elseif ($row['puntaje_total'] == -1) { 
-                        $duracion_str = !empty($row['seguridad_motivo']) ? "Pausado (Seguridad)" : "En progreso"; 
+                        $duracion_str = !empty($row['seguridad_motivo']) ? "Pausado (Preg. #$preg_act de $total_preg)" : "Rindiendo (Preg. #$preg_act de $total_preg)"; 
                     }
                     $row['hora_inicio'] = $inicio ? $inicio->format('H:i:s') : '--';
                     $row['hora_fin']    = $fin ? $fin->format('H:i:s') : '--';

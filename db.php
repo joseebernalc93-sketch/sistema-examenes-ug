@@ -64,3 +64,96 @@ if ($es_supabase) {
         die('⚠ Error al conectar a la base de datos MySQL: ' . $e->getMessage() . '<br>Si estás en Vercel, asegúrate de configurar las variables de entorno (DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT).');
     }
 }
+
+// ==========================================
+// PERSISTENCIA INTELIGENTE DE SESIÓN (SERVERLESS / VERCEL)
+// ==========================================
+if (session_status() === PHP_SESSION_NONE) {
+    @session_start();
+}
+
+if (!function_exists('generarTokenAuthUG')) {
+    function generarTokenAuthUG($usuario_id, $password_hash) {
+        $secret = 'UG_SECRET_KEY_EXAMENES_2026_SEGURIDAD';
+        $payload = $usuario_id . '|' . substr($password_hash, 0, 10);
+        $signature = hash_hmac('sha256', $payload, $secret);
+        return base64_encode($payload . '|' . $signature);
+    }
+}
+
+if (!function_exists('verificarTokenAuthUG')) {
+    function verificarTokenAuthUG($token) {
+        $secret = 'UG_SECRET_KEY_EXAMENES_2026_SEGURIDAD';
+        $decoded = base64_decode($token, true);
+        if (!$decoded) return null;
+        $parts = explode('|', $decoded);
+        if (count($parts) !== 3) return null;
+        list($uid, $pass_sub, $sig) = $parts;
+        $payload = $uid . '|' . $pass_sub;
+        $expected_sig = hash_hmac('sha256', $payload, $secret);
+        if (!hash_equals($expected_sig, $sig)) return null;
+        return ['uid' => (int)$uid, 'pass_sub' => $pass_sub];
+    }
+}
+
+if (!function_exists('asegurarSesionRestaurada')) {
+    function asegurarSesionRestaurada($conn) {
+        if (!$conn) return;
+
+        // Si la sesión está vacía en este contenedor serverless, restaurar desde cookie firmada
+        if (empty($_SESSION['usuario']) && !empty($_COOKIE['auth_ug'])) {
+            $data = verificarTokenAuthUG($_COOKIE['auth_ug']);
+            if ($data && $data['uid'] > 0) {
+                $uid = (int)$data['uid'];
+                $res = $conn->query("SELECT * FROM usuarios WHERE id = $uid AND estado = 'aceptado' LIMIT 1");
+                if ($res && $res->num_rows > 0) {
+                    $user = $res->fetch_assoc();
+                    if (substr($user['password'], 0, 10) === $data['pass_sub']) {
+                        $_SESSION['usuario'] = $user;
+                    }
+                }
+            }
+        }
+
+        // Si el usuario ya tiene sesión activa pero la cookie no está o está por expirar, renovarla
+        if (!empty($_SESSION['usuario']['id']) && !empty($_SESSION['usuario']['password'])) {
+            if (empty($_COOKIE['auth_ug']) && !headers_sent()) {
+                $token = generarTokenAuthUG($_SESSION['usuario']['id'], $_SESSION['usuario']['password']);
+                $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (!empty($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443);
+                @setcookie('auth_ug', $token, [
+                    'expires' => time() + (86400 * 30),
+                    'path' => '/',
+                    'secure' => $isSecure,
+                    'httponly' => true,
+                    'samesite' => 'Lax'
+                ]);
+            }
+        }
+    }
+}
+
+if (!function_exists('asegurarColumnasProgreso')) {
+    function asegurarColumnasProgreso($conn) {
+        static $checked = false;
+        if ($checked || !$conn) return;
+        $checked = true;
+        try {
+            $check1 = $conn->query("SHOW COLUMNS FROM resultados_examen LIKE 'tiempos_respuestas_json'");
+            if (!$check1 || $check1->num_rows == 0) {
+                @$conn->query("ALTER TABLE resultados_examen ADD COLUMN tiempos_respuestas_json TEXT DEFAULT NULL");
+            }
+            $check2 = $conn->query("SHOW COLUMNS FROM resultados_examen LIKE 'pregunta_actual'");
+            if (!$check2 || $check2->num_rows == 0) {
+                @$conn->query("ALTER TABLE resultados_examen ADD COLUMN pregunta_actual INT DEFAULT 1");
+            }
+        } catch (Throwable $e) {
+            // Silencioso si ya existen o no soportado
+        }
+    }
+}
+
+if (isset($conn)) {
+    asegurarSesionRestaurada($conn);
+    asegurarColumnasProgreso($conn);
+}
+

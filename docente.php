@@ -86,6 +86,16 @@ if ($qInfoPerfil && $qInfoPerfil->num_rows > 0) {
     :root { --primary: #0f6cb6; --bg-body: #f2f2f2; --text-color: #373a3c; }
     body { font-family: 'Open Sans', sans-serif; background-color: var(--bg-body); color: var(--text-color); margin: 0; padding: 0; font-size: 0.9rem; }
     
+    @keyframes modalPop {
+        0% { transform: scale(0.92); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes pulseLive {
+        0% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.35; transform: scale(1.25); }
+        100% { opacity: 1; transform: scale(1); }
+    }
+    
     /* NAVBAR */
     .navbar { background-color: #fff; height: 60px; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: fixed; top: 0; width: 100%; z-index: 1000; box-sizing: border-box; }
     .navbar-brand { font-weight: 700; color: var(--primary); font-size: 1.4rem; text-decoration: none; }
@@ -939,6 +949,83 @@ if ($qInfoPerfil && $qInfoPerfil->num_rows > 0) {
     <div id="listaIntentos"></div>
 </div></div>
 
+<!-- MODAL DE AVISO / CONFIRMACIÓN PROPIO DEL SISTEMA UG -->
+<div id="modalAvisoUG" class="modal" style="display:none; align-items:center; justify-content:center; background:rgba(15,23,42,0.65); z-index:999999;">
+    <div class="modal-content" style="max-width:480px; width:92%; border-radius:14px; overflow:hidden; box-shadow:0 20px 40px rgba(0,0,0,0.3); padding:0; border:1px solid #cbd5e1; animation: modalPop 0.25s ease-out;">
+        <div style="background:linear-gradient(135deg, #0b4f8a 0%, #1e3a8a 100%); color:#ffffff; padding:16px 20px; display:flex; align-items:center; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span id="modalAvisoIconoHeader" style="font-size:20px;">🎓</span>
+                <span style="font-weight:700; font-size:15px; letter-spacing:0.3px;">Sistema de Exámenes - UG</span>
+            </div>
+            <button type="button" onclick="cerrarAvisoUG(false)" style="background:transparent; border:none; color:white; font-size:22px; cursor:pointer; line-height:1;">&times;</button>
+        </div>
+        <div style="padding:24px 22px 20px; background:#ffffff; text-align:center;">
+            <div id="modalAvisoIconoGrande" style="font-size:46px; margin-bottom:12px;">✅</div>
+            <h3 id="modalAvisoTitulo" style="margin:0 0 10px; font-size:18px; color:#0f172a; font-weight:700;">Operación Exitosa</h3>
+            <div id="modalAvisoCuerpo" style="font-size:14px; color:#334155; line-height:1.55; margin-bottom:20px; text-align:center;">
+                <!-- Mensaje e información detallada -->
+            </div>
+            <div id="modalAvisoBotones" style="display:flex; justify-content:center; gap:12px;">
+                <button type="button" id="btnAvisoCancelar" onclick="cerrarAvisoUG(false)" class="btn btn-outline" style="min-width:105px; display:none;">Cancelar</button>
+                <button type="button" id="btnAvisoConfirmar" onclick="cerrarAvisoUG(true)" class="btn btn-primary" style="min-width:115px; background:#0b4f8a; font-weight:600; padding:9px 18px;">Aceptar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE PROGRESO EN VIVO / MONITOREO DE EXAMEN -->
+<div id="modalProgresoVivo" class="modal" style="display:none; align-items:center; justify-content:center; background:rgba(15,23,42,0.7); z-index:999998;">
+    <div class="modal-content modal-wide" style="max-width:960px; width:95%; max-height:90vh; border-radius:14px; overflow:hidden; box-shadow:0 25px 50px rgba(0,0,0,0.35); padding:0; display:flex; flex-direction:column; border:1px solid #cbd5e1;">
+        <div style="background:linear-gradient(135deg, #0b4f8a 0%, #0369a1 100%); color:#ffffff; padding:14px 20px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0;">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <span style="font-size:22px;">📊</span>
+                <div>
+                    <div style="font-weight:700; font-size:16px;" id="pvTituloEstudiante">Monitoreo en Tiempo Real</div>
+                    <div style="font-size:12px; color:#bae6fd;" id="pvSubtituloExamen">Examen: --</div>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+                <span id="pvBadgeEnVivo" style="background:#22c55e; color:white; font-size:11px; font-weight:700; padding:3px 9px; border-radius:20px; display:inline-flex; align-items:center; gap:5px; box-shadow:0 0 8px rgba(34,197,94,0.6);">
+                    <span style="display:inline-block; width:7px; height:7px; background:white; border-radius:50%; animation: pulseLive 1.2s infinite;"></span>
+                    EN VIVO (3s)
+                </span>
+                <button type="button" onclick="cerrarProgresoVivo()" style="background:transparent; border:none; color:white; font-size:24px; cursor:pointer; line-height:1;">&times;</button>
+            </div>
+        </div>
+        
+        <!-- Barra de métricas y resumen superior -->
+        <div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:14px 20px; display:flex; flex-wrap:wrap; gap:15px; align-items:center; justify-content:space-between; flex-shrink:0;">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <div id="pvBadgeEstado" style="font-size:13px; font-weight:700;">--</div>
+                <div id="pvInfoPreguntaActual" style="font-size:13px; background:#e0f2fe; color:#0369a1; padding:4px 10px; border-radius:6px; font-weight:600; border:1px solid #bae6fd;">
+                    📍 Pregunta en curso: #--
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:15px;">
+                <div style="font-size:13px; color:#475569;">
+                    <strong>Respondidas:</strong> <span id="pvRespondidasCount" style="font-weight:700; color:#0f172a;">0 / 0</span>
+                </div>
+                <div style="width:140px; background:#e2e8f0; height:10px; border-radius:6px; overflow:hidden;">
+                    <div id="pvBarraProgreso" style="background:#0284c7; height:100%; width:0%; transition: width 0.4s ease;"></div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline" onclick="cargarDatosProgresoVivo(true)" style="padding:4px 9px; font-size:12px; display:flex; align-items:center; gap:4px;">
+                    🔄 Refrescar ahora
+                </button>
+            </div>
+        </div>
+
+        <!-- Contenedor scroll de la tabla -->
+        <div style="padding:15px 20px; overflow-y:auto; flex:1;" id="pvContenedorTabla">
+            <div style="text-align:center; padding:40px; color:#64748b;">Cargando preguntas y tiempos en tiempo real...</div>
+        </div>
+
+        <div style="background:#f1f5f9; padding:10px 20px; border-top:1px solid #e2e8f0; font-size:12px; color:#64748b; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+            <span>ℹ️ Los tiempos se registran con hora, minuto y segundo al momento de responder cada pregunta.</span>
+            <button type="button" class="btn btn-sm" onclick="cerrarProgresoVivo()" style="background:#64748b; color:white; border:none; padding:4px 14px; border-radius:5px;">Cerrar</button>
+        </div>
+    </div>
+</div>
+
 <div id="modalRevision" class="modal"><div class="modal-content" style="width:80%; height:90vh;">
     <div class="modal-header"><h3>Revisión</h3><button class="close-btn" onclick="this.closest('.modal').style.display='none'">&times;</button></div>
     <div id="contenidoRevision" style="height:calc(100% - 60px); overflow-y:auto;"></div>
@@ -1266,8 +1353,9 @@ function renderNotificacionesSeguridad(cursoId) {
             <td>${examen}</td>
             <td>${razon}</td>
             <td style="text-align:center; white-space:nowrap;">
-                <button type="button" class="btn btn-sm" style="background:#10b981; color:white; border:none; padding:4px 8px; margin-right:4px; font-weight:600; font-size:12px; border-radius:4px;" onclick="gestionarIntento(${n.examen_id}, ${n.estudiante_id}, 'reanudar')" title="Reanudar examen desde la pregunta donde se quedó">▶ Reanudar</button>
-                <button type="button" class="btn btn-sm" style="background:#f97316; color:white; border:none; padding:4px 8px; font-weight:600; font-size:12px; border-radius:4px;" onclick="gestionarIntento(${n.examen_id}, ${n.estudiante_id}, 'reiniciar')" title="Reiniciar examen desde el inicio">↻ Reiniciar</button>
+                <button type="button" class="btn btn-sm" style="background:#0284c7; color:white; border:none; padding:4px 8px; margin-right:4px; font-weight:600; font-size:12px; border-radius:4px;" onclick="abrirProgresoVivo(${n.examen_id}, ${n.estudiante_id})" title="Ver progreso en tiempo real y registro de preguntas con segundos">👁️ En Vivo</button>
+                <button type="button" class="btn btn-sm" style="background:#10b981; color:white; border:none; padding:4px 8px; margin-right:4px; font-weight:600; font-size:12px; border-radius:4px;" onclick="gestionarIntento(${n.examen_id}, ${n.estudiante_id}, 'reanudar', '${escapeHtml(n.estudiante_nombre || '')}')" title="Reanudar examen desde la pregunta donde se quedó">▶ Reanudar</button>
+                <button type="button" class="btn btn-sm" style="background:#f97316; color:white; border:none; padding:4px 8px; font-weight:600; font-size:12px; border-radius:4px;" onclick="gestionarIntento(${n.examen_id}, ${n.estudiante_id}, 'reiniciar', '${escapeHtml(n.estudiante_nombre || '')}')" title="Reiniciar examen desde el inicio">↻ Reiniciar</button>
             </td>
         </tr>`;
     });
@@ -2388,38 +2476,58 @@ function actualizarPuntajePregunta(preguntaId) {
     });
 }
 
+let currentExamenIntentos = null;
+
 function abrirIntentos(examenId) {
-    const intentos = intentosData[examenId] || [];
-    let h = '<table><thead><tr><th>Estudiante</th><th>Inicio</th><th>Fin</th><th style="text-align:center">Puntaje</th><th>Acción</th></tr></thead><tbody>';
+    currentExamenIntentos = examenId;
+    const intentos = (intentosData && intentosData[examenId]) ? intentosData[examenId] : [];
+    let h = '<table class="table-intentos" style="width:100%; border-collapse:collapse; font-size:13px;"><thead><tr style="background:#f1f5f9; border-bottom:2px solid #cbd5e1; text-align:left;"><th style="padding:10px 12px;">Estudiante</th><th style="padding:10px 12px;">Inicio</th><th style="padding:10px 12px;">Fin</th><th style="text-align:center; padding:10px 12px;">Estado / Puntaje</th><th style="text-align:center; padding:10px 12px;">Acción</th></tr></thead><tbody>';
+    
     if(intentos.length === 0) {
-        h += '<tr><td colspan="5" style="text-align:center; color:#888;">Sin intentos.</td></tr>';
+        h += '<tr><td colspan="5" style="text-align:center; color:#888; padding:30px;">Sin intentos registrados.</td></tr>';
     } else {
         intentos.forEach(i => {
             let ptj = '';
+            const totalP = parseInt(i.total_preguntas || 0);
+            const respP = parseInt(i.respondidas_count || 0);
+            const pregAct = parseInt(i.pregunta_actual_num || (respP + 1));
+            const progTxt = totalP > 0 ? ` (Pregunta #${pregAct} de ${totalP} | ${respP} respondidas)` : '';
+
             if (i.seguridad_motivo && i.puntaje_total == -1) {
                 const mot = escapeHtml(i.seguridad_motivo);
-                ptj = `<span style="background:#fee2e2; color:#b91c1c; font-weight:700; padding:4px 8px; border-radius:6px; border:1px solid #fca5a5; display:inline-block; font-size:12px;" title="${mot}">⚠️ Examen pausado (Seguridad)<br><small style="font-weight:600; color:#991b1b;">${mot}</small></span>`;
+                ptj = `<div style="background:#fee2e2; color:#991b1b; padding:6px 10px; border-radius:6px; border:1px solid #fca5a5; display:inline-block; font-size:12px; text-align:left;">
+                    <div style="font-weight:700;">⚠️ Examen Pausado${progTxt}</div>
+                    <small style="color:#b91c1c; display:block; margin-top:2px;">Motivo: ${mot}</small>
+                </div>`;
             } else if (i.seguridad_motivo) {
                 const mot = escapeHtml(i.seguridad_motivo);
                 const scoreColor = parseFloat(i.puntaje_total) < 7 ? '#ef4444' : '#10b981';
-                ptj = `<span style="color:${scoreColor}; font-weight:bold;">${parseFloat(i.puntaje_total).toFixed(2)}</span> <span style="background:#fee2e2; color:#b91c1c; font-size:11px; padding:2px 6px; border-radius:4px; margin-left:4px;" title="${mot}">⚠️ Alerta: ${mot}</span>`;
+                ptj = `<span style="color:${scoreColor}; font-weight:bold; font-size:13px;">${parseFloat(i.puntaje_total).toFixed(2)}</span> <span style="background:#fee2e2; color:#b91c1c; font-size:11px; padding:2px 6px; border-radius:4px; margin-left:4px;" title="${mot}">⚠️ ${mot}</span>`;
             } else if (i.puntaje_total == -1) {
-                ptj = '<span style="color:#f59e0b">⏳ Rindiendo</span>';
+                ptj = `<div style="background:#e0f2fe; color:#0369a1; padding:6px 10px; border-radius:6px; border:1px solid #bae6fd; display:inline-block; font-size:12px; font-weight:700; text-align:left;">
+                    ⏳ Rindiendo${progTxt}
+                </div>`;
             } else {
-                ptj = `<span style="color:${parseFloat(i.puntaje_total)<7?'#ef4444':'#10b981'}">${parseFloat(i.puntaje_total).toFixed(2)}</span>`;
+                ptj = `<span style="color:${parseFloat(i.puntaje_total)<7?'#ef4444':'#10b981'}; font-weight:bold; font-size:14px;">${parseFloat(i.puntaje_total).toFixed(2)}</span>`;
             }
-            h += `<tr>
-                <td>${i.estudiante_nombre}</td>
-                <td>${i.fecha_inicio_real ? i.fecha_inicio_real.substring(0,16) : '--'}</td>
-                <td>${i.fecha_intento ? i.fecha_intento.substring(0,16) : '--'}</td>
-                <td style="text-align:center">${ptj}</td>
-                <td style="white-space:nowrap;">
+
+            const nombreEsc = escapeHtml(i.estudiante_nombre || '');
+            h += `<tr style="border-bottom:1px solid #e2e8f0;">
+                <td style="padding:10px 12px;">
+                    <strong>${nombreEsc}</strong>
+                    ${i.cedula ? `<br><small style="color:#64748b;">${escapeHtml(i.cedula)}</small>` : ''}
+                </td>
+                <td style="padding:10px 12px;">${i.fecha_inicio_real ? i.fecha_inicio_real.substring(0,16) : '--'}</td>
+                <td style="padding:10px 12px;">${i.fecha_intento ? i.fecha_intento.substring(0,16) : '--'}</td>
+                <td style="text-align:center; padding:10px 12px;">${ptj}</td>
+                <td style="white-space:nowrap; text-align:center; padding:10px 12px;">
+                    <button type="button" class="btn btn-sm" style="background:#0284c7; color:white; border:none; padding:5px 9px; margin-right:4px; font-weight:600; font-size:12px; border-radius:4px; cursor:pointer;" onclick="abrirProgresoVivo(${examenId}, ${i.estudiante_id})" title="Ver en vivo qué pregunta va respondiendo y horas exactas con segundos">👁️ En Vivo</button>
                     ${(i.seguridad_motivo || i.puntaje_total == -1) ? `
-                        <button type="button" class="btn btn-sm" style="background:#10b981; color:white; border:none; padding:4px 8px; margin-right:4px; font-weight:600; font-size:12px; border-radius:4px;" onclick="gestionarIntento(${examenId}, ${i.estudiante_id}, 'reanudar')" title="Reanudar examen desde donde se quedó (conserva sus respuestas)">▶ Reanudar</button>
-                        <button type="button" class="btn btn-sm" style="background:#f97316; color:white; border:none; padding:4px 8px; font-weight:600; font-size:12px; border-radius:4px;" onclick="gestionarIntento(${examenId}, ${i.estudiante_id}, 'reiniciar')" title="Reiniciar intento desde el inicio (borra respuestas)">↻ Reiniciar</button>
+                        <button type="button" class="btn btn-sm" style="background:#10b981; color:white; border:none; padding:5px 9px; margin-right:4px; font-weight:600; font-size:12px; border-radius:4px; cursor:pointer;" onclick="gestionarIntento(${examenId}, ${i.estudiante_id}, 'reanudar', '${nombreEsc}')" title="Reanudar examen desde donde se quedó (conserva sus respuestas)">▶ Reanudar</button>
+                        <button type="button" class="btn btn-sm" style="background:#f97316; color:white; border:none; padding:5px 9px; font-weight:600; font-size:12px; border-radius:4px; cursor:pointer;" onclick="gestionarIntento(${examenId}, ${i.estudiante_id}, 'reiniciar', '${nombreEsc}')" title="Reiniciar intento desde el inicio (borra respuestas)">↻ Reiniciar</button>
                     ` : `
-                        <button class="btn btn-sm btn-outline" style="margin-right:4px;" onclick="verRevision(${examenId}, ${i.estudiante_id})" title="Revisar">📖</button>
-                        <button type="button" class="btn btn-sm btn-outline" onclick="gestionarIntento(${examenId}, ${i.estudiante_id}, 'reiniciar')" title="Reiniciar intento desde el inicio">↻</button>
+                        <button class="btn btn-sm btn-outline" style="margin-right:4px; padding:5px 9px; font-size:12px;" onclick="verRevision(${examenId}, ${i.estudiante_id})" title="Revisar respuestas">📖 Revisión</button>
+                        <button type="button" class="btn btn-sm btn-outline" style="padding:5px 9px; font-size:12px;" onclick="gestionarIntento(${examenId}, ${i.estudiante_id}, 'reiniciar', '${nombreEsc}')" title="Reiniciar intento desde el inicio">↻</button>
                     `}
                 </td>
             </tr>`;
@@ -2430,13 +2538,59 @@ function abrirIntentos(examenId) {
     document.getElementById('modalIntentos').style.display='flex';
 }
 
-function gestionarIntento(examenId, estudianteId, tipo) {
-    const textoAccion = (tipo === 'reanudar') 
-        ? '¿Deseas reanudar el examen al estudiante para que continúe desde donde se quedó (conservando sus respuestas ya respondidas)?' 
-        : '¿Deseas reiniciar el examen desde el inicio? (Se borrarán todas sus respuestas previas para comenzar de nuevo).';
-        
-    if (!confirm(textoAccion)) return;
+function refrescarIntentosExamen(examenId) {
+    if (!examenId) return;
+    const fd = new FormData();
+    fd.append('action', 'obtener_intentos_examen');
+    fd.append('examen_id', examenId);
 
+    fetch('docente_core.php', { method: 'POST', body: fd, credentials: 'same-origin' })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success && Array.isArray(data.intentos)) {
+            if (typeof intentosData === 'undefined' || !intentosData) {
+                window.intentosData = {};
+            }
+            intentosData[examenId] = data.intentos;
+            if (document.getElementById('modalIntentos').style.display === 'flex' && currentExamenIntentos == examenId) {
+                abrirIntentos(examenId);
+            }
+        }
+    })
+    .catch(() => {});
+}
+
+function gestionarIntento(examenId, estudianteId, tipo, nombreEstudiante = '') {
+    const nombre = nombreEstudiante || `Estudiante #${estudianteId}`;
+    if (tipo === 'reanudar') {
+        mostrarConfirmacionUG(
+            'Reanudar Examen',
+            `¿Deseas reanudar el examen a <strong>${escapeHtml(nombre)}</strong>?<br><br>` +
+            `<div style="text-align:left; background:#f0fdf4; border:1px solid #bbf7d0; padding:12px; border-radius:6px; font-size:13px; color:#166534; line-height:1.5;">` +
+            `• El estudiante podrá continuar desde la pregunta en que se quedó.<br>` +
+            `• Se conservarán intactas todas sus respuestas previas.<br>` +
+            `• El estado pasará a <strong>⏳ Rindiendo</strong> inmediatamente.<br>` +
+            `• La alerta de seguridad se desactivará para desbloquear la aplicación.` +
+            `</div>`,
+            '▶ Reanudar Examen',
+            () => ejecutarGestionIntento(examenId, estudianteId, tipo),
+            false
+        );
+    } else {
+        mostrarConfirmacionUG(
+            'Reiniciar Examen desde Cero',
+            `¿Estás seguro de reiniciar el examen a <strong>${escapeHtml(nombre)}</strong>?<br><br>` +
+            `<div style="text-align:left; background:#fff1f2; border:1px solid #fecdd3; padding:12px; border-radius:6px; font-size:13px; color:#9f1239; line-height:1.5;">` +
+            `⚠️ <strong>Atención:</strong> Se borrarán todas sus respuestas anteriores y el estudiante deberá iniciar una evaluación completamente nueva desde la pregunta 1.` +
+            `</div>`,
+            '↻ Sí, Reiniciar',
+            () => ejecutarGestionIntento(examenId, estudianteId, tipo),
+            true
+        );
+    }
+}
+
+function ejecutarGestionIntento(examenId, estudianteId, tipo) {
     const fd = new FormData();
     fd.append('action', 'gestionar_intento_estudiante');
     fd.append('examen_id', examenId);
@@ -2447,15 +2601,252 @@ function gestionarIntento(examenId, estudianteId, tipo) {
     .then(r => r.json())
     .then(data => {
         if (!data.success) {
-            alert(data.error || 'No se pudo procesar la solicitud.');
+            mostrarAvisoUG('Error', data.error || 'No se pudo procesar la solicitud.', 'error');
             return;
         }
-        alert(data.mensaje || 'Operación completada con éxito.');
-        window.location.reload();
+
+        // Mostrar emergente propio de UG (sin alert de navegador y sin recargar la página)
+        mostrarAvisoUG(
+            tipo === 'reanudar' ? 'Examen Reanudado' : 'Examen Reiniciado',
+            data.mensaje || 'Operación completada con éxito.',
+            'success'
+        );
+
+        // Actualizar intentos en el DOM en tiempo real (mantiene la sesión viva)
+        refrescarIntentosExamen(examenId);
+
+        // Si está abierto el modal de monitoreo en vivo de este estudiante, refrescarlo
+        if (progresoVivoEstudianteId == estudianteId) {
+            cargarDatosProgresoVivo(false);
+        }
+
+        // Refrescar lista de notificaciones de seguridad del curso si existe
+        if (typeof cargarNotificacionesSeguridadCurso === 'function') {
+            cargarNotificacionesSeguridadCurso();
+        }
     })
     .catch(err => {
-        alert('Error de red al procesar la solicitud.');
+        mostrarAvisoUG('Error de Conexión', 'Hubo un error al comunicarse con el servidor.', 'error');
     });
+}
+
+// ==========================================
+// CONTROLADOR DE AVISOS Y CONFIRMACIONES UG
+// ==========================================
+let avisoUGCallback = null;
+
+function mostrarAvisoUG(titulo, mensajeHtml, tipo = 'success', onAceptar = null) {
+    const modal = document.getElementById('modalAvisoUG');
+    if (!modal) {
+        alert(mensajeHtml.replace(/<[^>]*>/g, ''));
+        if (typeof onAceptar === 'function') onAceptar();
+        return;
+    }
+    avisoUGCallback = onAceptar;
+    
+    document.getElementById('modalAvisoTitulo').textContent = titulo;
+    document.getElementById('modalAvisoCuerpo').innerHTML = mensajeHtml;
+    
+    const icono = document.getElementById('modalAvisoIconoGrande');
+    const btnConfirmar = document.getElementById('btnAvisoConfirmar');
+    const btnCancelar = document.getElementById('btnAvisoCancelar');
+    
+    btnCancelar.style.display = 'none';
+    btnConfirmar.textContent = 'Aceptar';
+    btnConfirmar.style.background = '#0b4f8a';
+
+    if (tipo === 'success') {
+        icono.textContent = '✅';
+        btnConfirmar.style.background = '#10b981';
+    } else if (tipo === 'error') {
+        icono.textContent = '❌';
+        btnConfirmar.style.background = '#dc2626';
+    } else if (tipo === 'warning') {
+        icono.textContent = '⚠️';
+        btnConfirmar.style.background = '#d97706';
+    } else {
+        icono.textContent = 'ℹ️';
+    }
+
+    modal.style.display = 'flex';
+}
+
+function mostrarConfirmacionUG(titulo, mensajeHtml, textoConfirmar, onConfirmar, esPeligroso = false) {
+    const modal = document.getElementById('modalAvisoUG');
+    if (!modal) {
+        if (confirm(mensajeHtml.replace(/<[^>]*>/g, ''))) {
+            if (typeof onConfirmar === 'function') onConfirmar();
+        }
+        return;
+    }
+    
+    avisoUGCallback = onConfirmar;
+    
+    document.getElementById('modalAvisoTitulo').textContent = titulo;
+    document.getElementById('modalAvisoCuerpo').innerHTML = mensajeHtml;
+    
+    const icono = document.getElementById('modalAvisoIconoGrande');
+    const btnConfirmar = document.getElementById('btnAvisoConfirmar');
+    const btnCancelar = document.getElementById('btnAvisoCancelar');
+    
+    btnCancelar.style.display = 'inline-block';
+    btnConfirmar.textContent = textoConfirmar || 'Confirmar';
+    btnConfirmar.style.background = esPeligroso ? '#dc2626' : '#10b981';
+    icono.textContent = esPeligroso ? '⚠️' : '❓';
+
+    modal.style.display = 'flex';
+}
+
+function cerrarAvisoUG(ejecutar = true) {
+    const modal = document.getElementById('modalAvisoUG');
+    if (modal) modal.style.display = 'none';
+    if (ejecutar && typeof avisoUGCallback === 'function') {
+        const cb = avisoUGCallback;
+        avisoUGCallback = null;
+        cb();
+    } else {
+        avisoUGCallback = null;
+    }
+}
+
+// ==========================================
+// MONITOREO DE PROGRESO EN VIVO (H:i:s)
+// ==========================================
+let progresoVivoTimer = null;
+let progresoVivoExamenId = null;
+let progresoVivoEstudianteId = null;
+
+function abrirProgresoVivo(examenId, estudianteId) {
+    progresoVivoExamenId = examenId;
+    progresoVivoEstudianteId = estudianteId;
+    
+    document.getElementById('pvTituloEstudiante').textContent = 'Cargando datos del estudiante...';
+    document.getElementById('pvSubtituloExamen').textContent = 'Examen #' + examenId;
+    document.getElementById('pvContenedorTabla').innerHTML = '<div style="text-align:center; padding:40px; color:#64748b;">Conectando con el examen en vivo...</div>';
+    document.getElementById('modalProgresoVivo').style.display = 'flex';
+    
+    cargarDatosProgresoVivo(false);
+    
+    if (progresoVivoTimer) clearInterval(progresoVivoTimer);
+    progresoVivoTimer = setInterval(() => {
+        cargarDatosProgresoVivo(false);
+    }, 3000);
+}
+
+function cerrarProgresoVivo() {
+    if (progresoVivoTimer) {
+        clearInterval(progresoVivoTimer);
+        progresoVivoTimer = null;
+    }
+    progresoVivoExamenId = null;
+    progresoVivoEstudianteId = null;
+    const m = document.getElementById('modalProgresoVivo');
+    if (m) m.style.display = 'none';
+}
+
+function cargarDatosProgresoVivo(esManual = false) {
+    if (!progresoVivoExamenId || !progresoVivoEstudianteId) return;
+    
+    const fd = new FormData();
+    fd.append('action', 'obtener_progreso_estudiante');
+    fd.append('examen_id', progresoVivoExamenId);
+    fd.append('estudiante_id', progresoVivoEstudianteId);
+
+    fetch('docente_core.php', { method: 'POST', body: fd, credentials: 'same-origin' })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) {
+            if (esManual) mostrarAvisoUG('Error', data.error || 'No se pudo obtener el progreso.', 'error');
+            return;
+        }
+        renderProgresoVivo(data);
+    })
+    .catch(() => {});
+}
+
+function renderProgresoVivo(data) {
+    const est = data.estudiante || {};
+    const ex = data.examen || {};
+    
+    document.getElementById('pvTituloEstudiante').textContent = `${est.nombres || 'Estudiante'} (${est.cedula || '--'})`;
+    document.getElementById('pvSubtituloExamen').textContent = `Materia / Examen: ${ex.titulo || '--'} | Duración: ${ex.duracion || 60} min`;
+    
+    // Estado badge
+    const badgeEstado = document.getElementById('pvBadgeEstado');
+    if (data.estado === 'pausado') {
+        const mot = escapeHtml(data.motivo_pausa || 'Seguridad');
+        badgeEstado.innerHTML = `<span style="background:#fee2e2; color:#991b1b; padding:4px 9px; border-radius:6px; border:1px solid #fca5a5; font-size:12px;" title="${mot}">⚠️ Pausado por seguridad</span>`;
+    } else if (data.estado === 'rindiendo') {
+        badgeEstado.innerHTML = `<span style="background:#dcfce7; color:#15803d; padding:4px 9px; border-radius:6px; border:1px solid #86efac; font-size:12px;">⏳ Rindiendo examen</span>`;
+    } else if (data.estado === 'finalizado') {
+        badgeEstado.innerHTML = `<span style="background:#e0e7ff; color:#3730a3; padding:4px 9px; border-radius:6px; border:1px solid #c7d2fe; font-size:12px;">🏁 Finalizado</span>`;
+    } else {
+        badgeEstado.innerHTML = `<span style="background:#f1f5f9; color:#475569; padding:4px 9px; border-radius:6px; font-size:12px;">Sin iniciar</span>`;
+    }
+
+    // Pregunta actual
+    const infoAct = document.getElementById('pvInfoPreguntaActual');
+    if (data.pregunta_actual_num > 0 && data.estado !== 'finalizado') {
+        infoAct.innerHTML = `📍 En curso: <strong>Pregunta #${data.pregunta_actual_num} de ${data.total_preguntas}</strong>`;
+    } else if (data.estado === 'finalizado') {
+        infoAct.innerHTML = `📍 Todas las preguntas evaluadas`;
+    } else {
+        infoAct.innerHTML = `📍 No disponible`;
+    }
+
+    // Respondidas & Barra
+    document.getElementById('pvRespondidasCount').textContent = `${data.respondidas_count} / ${data.total_preguntas}`;
+    document.getElementById('pvBarraProgreso').style.width = `${data.porcentaje || 0}%`;
+
+    // Render tabla de preguntas
+    const preguntas = data.preguntas || [];
+    let html = '';
+    if (preguntas.length === 0) {
+        html = '<div style="text-align:center; padding:30px; color:#64748b;">No hay preguntas registradas para este intento.</div>';
+    } else {
+        html = `<table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <thead>
+                <tr style="background:#f1f5f9; border-bottom:2px solid #cbd5e1; text-align:left;">
+                    <th style="padding:9px 12px; width:45px; text-align:center;">#</th>
+                    <th style="padding:9px 12px;">Enunciado de la Pregunta</th>
+                    <th style="padding:9px 12px; width:130px; text-align:center;">Estado</th>
+                    <th style="padding:9px 12px; width:220px;">Respuesta Marcada</th>
+                    <th style="padding:9px 12px; width:140px; text-align:center;">Hora Exacta (H:i:s)</th>
+                </tr>
+            </thead>
+            <tbody>`;
+        
+        preguntas.forEach(p => {
+            const rowBg = p.es_actual ? 'background:#f0f9ff; border-left:4px solid #0284c7;' : '';
+            const statusBadge = p.respondida 
+                ? '<span style="background:#dcfce7; color:#15803d; font-weight:700; padding:3px 8px; border-radius:4px; font-size:11px;">✓ Respondida</span>'
+                : (p.es_actual ? '<span style="background:#fef3c7; color:#b45309; font-weight:700; padding:3px 8px; border-radius:4px; font-size:11px; animation:pulseLive 1.5s infinite;">⏳ En curso</span>' : '<span style="color:#94a3b8; font-size:12px;">Pendiente</span>');
+
+            const respText = p.respondida 
+                ? `<span style="color:#0f172a; font-weight:600;">${escapeHtml(p.opcion_texto || 'Opción seleccionada')}</span>`
+                : '<span style="color:#94a3b8; font-style:italic;">--</span>';
+
+            const horaBadge = p.hora_exacta 
+                ? `<span style="background:#e0f2fe; color:#0369a1; font-family:monospace; font-weight:700; padding:4px 8px; border-radius:4px; font-size:12px; border:1px solid #bae6fd;" title="${p.fecha_completa || ''}">🕐 ${p.hora_exacta}</span>`
+                : '<span style="color:#cbd5e1; font-family:monospace;">--:--:--</span>';
+
+            html += `<tr style="border-bottom:1px solid #e2e8f0; ${rowBg}">
+                <td style="padding:9px 12px; text-align:center; font-weight:700; color:#475569;">${p.numero}</td>
+                <td style="padding:9px 12px;">
+                    <span title="${escapeHtml(p.enunciado_completo || p.enunciado)}">${escapeHtml(p.enunciado)}</span>
+                    ${p.tiene_imagen ? ' <small style="background:#e2e8f0; color:#475569; padding:1px 4px; border-radius:3px;">🖼️ img</small>' : ''}
+                    ${p.es_actual ? ' <span style="background:#0284c7; color:white; font-size:10px; font-weight:700; padding:2px 5px; border-radius:3px; margin-left:6px;">ACTUAL</span>' : ''}
+                </td>
+                <td style="padding:9px 12px; text-align:center;">${statusBadge}</td>
+                <td style="padding:9px 12px;">${respText}</td>
+                <td style="padding:9px 12px; text-align:center;">${horaBadge}</td>
+            </tr>`;
+        });
+
+        html += `</tbody></table>`;
+    }
+
+    document.getElementById('pvContenedorTabla').innerHTML = html;
 }
 
 function verRevision(eid, uid) {

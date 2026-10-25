@@ -5059,6 +5059,19 @@ class App:
         self.crear_grid_preguntas()
         self._ajustar_wrap_enunciado()
         
+        # Notificar en segundo plano al servidor la pregunta actual en la que se encuentra el estudiante
+        def notif_pos():
+            try:
+                if hasattr(self, 'examen_id_actual') and self.examen_id_actual and usuario_actual:
+                    selenium_mgr.api_call('actualizar_progreso_estudiante', {
+                        'examen_id': self.examen_id_actual,
+                        'estudiante_id': usuario_actual['id'],
+                        'pregunta_actual': num
+                    })
+            except Exception:
+                pass
+        threading.Thread(target=notif_pos, daemon=True).start()
+
         # Verificar si necesita scroll después de un pequeño delay para que se renderice
         self.root.after(100, self._verificar_necesidad_scroll)
 
@@ -5095,7 +5108,8 @@ class App:
                 'examen_id': self.examen_id_actual,
                 'estudiante_id': usuario_actual['id'],
                 'pregunta_id': pregunta_id,
-                'opcion_id': oid
+                'opcion_id': oid,
+                'pregunta_numero': getattr(self, 'pagina_actual', 0)
             })
 
         threading.Thread(target=save, daemon=True).start()

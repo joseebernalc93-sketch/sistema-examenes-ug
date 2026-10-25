@@ -1328,35 +1328,87 @@ switch ($action) {
         $estudiante_id = (int)($datos['estudiante_id'] ?? 0);
         $pregunta_id = (int)($datos['pregunta_id'] ?? 0);
         $opcion_id = (int)($datos['opcion_id'] ?? 0);
+        $pregunta_num_in = (int)($datos['pregunta_numero'] ?? 0);
         
         if ($examen_id <= 0 || $estudiante_id <= 0 || $pregunta_id <= 0) {
             responder(['success' => false, 'error' => 'Datos incompletos'], 400);
         }
         
-        // Obtener JSON actual
-        $sql = "SELECT respuestas_json FROM resultados_examen 
-                WHERE examen_id = $examen_id AND estudiante_id = $estudiante_id";
+        asegurarColumnasProgreso($conn);
+
+        // Obtener JSON actual, orden de preguntas y tiempos de respuesta
+        $sql = "SELECT respuestas_json, tiempos_respuestas_json, orden_preguntas, pregunta_actual FROM resultados_examen 
+                WHERE examen_id = $examen_id AND estudiante_id = $estudiante_id LIMIT 1";
         $res = $conn->query($sql);
         
         if ($res && $res->num_rows > 0) {
             $row = $res->fetch_assoc();
-            $respuestas = json_decode($row['respuestas_json'], true) ?? [];
-            $respuestas[$pregunta_id] = $opcion_id;
+            $respuestas = json_decode($row['respuestas_json'] ?? '{}', true) ?? [];
+            $tiempos = json_decode($row['tiempos_respuestas_json'] ?? '{}', true) ?? [];
+            $ahora_str = date('Y-m-d H:i:s');
+            
+            if ($opcion_id > 0) {
+                $respuestas[$pregunta_id] = $opcion_id;
+                $tiempos[$pregunta_id] = $ahora_str; // Registrar hora exacta con minutos y segundos
+            } else {
+                unset($respuestas[$pregunta_id]);
+                unset($tiempos[$pregunta_id]);
+            }
+
+            // Calcular número de pregunta actual si no se envió explícitamente
+            $pregunta_actual_val = $pregunta_num_in;
+            if ($pregunta_actual_val <= 0) {
+                $orden_ids = !empty($row['orden_preguntas']) ? explode(',', $row['orden_preguntas']) : [];
+                $pos = array_search($pregunta_id, $orden_ids);
+                if ($pos !== false) {
+                    $pregunta_actual_val = $pos + 1;
+                } else {
+                    $pregunta_actual_val = (int)($row['pregunta_actual'] ?? 1);
+                }
+            }
+            
             $nuevo_json = json_encode($respuestas);
+            $nuevo_tiempos = json_encode($tiempos);
             $nuevo_json_safe = $conn->real_escape_string($nuevo_json);
+            $nuevo_tiempos_safe = $conn->real_escape_string($nuevo_tiempos);
             
             $sql_update = "UPDATE resultados_examen 
-                           SET respuestas_json = '$nuevo_json_safe' 
+                           SET respuestas_json = '$nuevo_json_safe',
+                               tiempos_respuestas_json = '$nuevo_tiempos_safe',
+                               pregunta_actual = $pregunta_actual_val
                            WHERE examen_id = $examen_id AND estudiante_id = $estudiante_id";
             
             if ($conn->query($sql_update)) {
-                responder(['success' => true, 'respuestas' => $respuestas]);
+                responder([
+                    'success' => true,
+                    'respuestas' => $respuestas,
+                    'timestamp' => $ahora_str,
+                    'hora_exacta' => date('H:i:s', strtotime($ahora_str)),
+                    'pregunta_actual' => $pregunta_actual_val
+                ]);
             } else {
-                responder(['success' => false, 'error' => 'Error al guardar'], 500);
+                responder(['success' => false, 'error' => 'Error al guardar respuesta'], 500);
             }
         } else {
             responder(['success' => false, 'error' => 'Intento no encontrado'], 404);
         }
+        break;
+
+    // ----------------------------------------
+    // ACTUALIZAR PROGRESO / PREGUNTA ACTUAL EN TIEMPO REAL
+    // ----------------------------------------
+    case 'actualizar_progreso_estudiante':
+        $examen_id = (int)($datos['examen_id'] ?? 0);
+        $estudiante_id = (int)($datos['estudiante_id'] ?? 0);
+        $preg_actual = (int)($datos['pregunta_actual'] ?? 0);
+        
+        if ($examen_id > 0 && $estudiante_id > 0 && $preg_actual > 0) {
+            asegurarColumnasProgreso($conn);
+            $conn->query("UPDATE resultados_examen 
+                          SET pregunta_actual = $preg_actual 
+                          WHERE examen_id = $examen_id AND estudiante_id = $estudiante_id");
+        }
+        responder(['success' => true]);
         break;
     
     // ----------------------------------------

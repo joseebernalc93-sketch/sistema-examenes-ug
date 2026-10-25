@@ -25,6 +25,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $row = $result->fetch_assoc();
         $_SESSION["usuario"] = $row;
 
+        // Persistir sesión para serverless (Vercel)
+        if (function_exists('generarTokenAuthUG')) {
+            $token_auth = generarTokenAuthUG($row['id'], $row['password']);
+            $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (!empty($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443);
+            setcookie('auth_ug', $token_auth, [
+                'expires' => time() + (86400 * 30),
+                'path' => '/',
+                'secure' => $isSecure,
+                'httponly' => true,
+                'samesite' => 'Lax'
+            ]);
+        }
+
         // Redirigir según rol
         if ($row["rol"] == "administrador") {
             header("Location: admin.php");
