@@ -208,6 +208,15 @@ class SupabasePdoAdapter {
             }, $sql);
         }
 
+        // Traducir IFNULL(a, b) -> COALESCE(a, b)
+        $sql = preg_replace('/\bIFNULL\s*\(/i', 'COALESCE(', $sql);
+
+        // Corregir operadores seguidos directamente de números negativos (ej. !=-1 -> != -1) para evitar operador inválido en PG
+        $sql = preg_replace('/([!<>]=?|=)(-[\d\.]+)/', '$1 $2', $sql);
+
+        // Traducir FIELD(col, a, b, c) -> array_position(ARRAY[a, b, c], col)
+        $sql = preg_replace('/FIELD\s*\(\s*(\w+)\s*,\s*(.*?)\s*\)/i', 'array_position(ARRAY[$2], $1)', $sql);
+
         // Traducir ON DUPLICATE KEY UPDATE para areas_materias (UK nombre_materia)
         if (stripos($sql, 'areas_materias') !== false && stripos($sql, 'ON DUPLICATE KEY UPDATE') !== false) {
             $sql = preg_replace('/ON\s+DUPLICATE\s+KEY\s+UPDATE\s+(.*)$/i', 'ON CONFLICT (nombre_materia) DO UPDATE SET $1', $sql);

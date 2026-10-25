@@ -79,11 +79,17 @@ if ($es_docente) {
 
         // 6. ESTADÍSTICAS POR CURSO
         foreach ($mis_cursos as $curso) {
-            $cid = $curso['id_oferta'];
-            $tot = $conn->query("SELECT COUNT(*) as t FROM usuario_cursos uc JOIN usuarios u ON uc.usuario_id=u.id WHERE uc.curso_id=$cid AND u.rol NOT IN ('administrador','docente','director_carrera','director_area')")->fetch_assoc()['t'];
-            $p1 = $conn->query("SELECT AVG(re.puntaje_total) as p FROM resultados_examen re JOIN examenes e ON re.examen_id=e.id WHERE e.curso_id=$cid AND (e.parcial='primer_parcial' OR e.parcial IS NULL) AND re.puntaje_total!=-1")->fetch_assoc()['p'];
-            $p2 = $conn->query("SELECT AVG(re.puntaje_total) as p FROM resultados_examen re JOIN examenes e ON re.examen_id=e.id WHERE e.curso_id=$cid AND e.parcial='segundo_parcial' AND re.puntaje_total!=-1")->fetch_assoc()['p'];
-            $estadisticas_cursos[$cid] = ['total_estudiantes' => $tot, 'promedio_p1' => $p1 ? round($p1,2) : null, 'promedio_p2' => $p2 ? round($p2,2) : null];
+            $cid = (int)$curso['id_oferta'];
+            $res_tot = $conn->query("SELECT COUNT(*) as t FROM usuario_cursos uc JOIN usuarios u ON uc.usuario_id=u.id WHERE uc.curso_id=$cid AND u.rol NOT IN ('administrador','docente','director_carrera','director_area')");
+            $tot = ($res_tot && $row = $res_tot->fetch_assoc()) ? (int)$row['t'] : 0;
+
+            $res_p1 = $conn->query("SELECT AVG(re.puntaje_total) as p FROM resultados_examen re JOIN examenes e ON re.examen_id=e.id WHERE e.curso_id=$cid AND (e.parcial='primer_parcial' OR e.parcial IS NULL) AND re.puntaje_total != -1");
+            $p1 = ($res_p1 && $row = $res_p1->fetch_assoc()) ? $row['p'] : null;
+
+            $res_p2 = $conn->query("SELECT AVG(re.puntaje_total) as p FROM resultados_examen re JOIN examenes e ON re.examen_id=e.id WHERE e.curso_id=$cid AND e.parcial='segundo_parcial' AND re.puntaje_total != -1");
+            $p2 = ($res_p2 && $row = $res_p2->fetch_assoc()) ? $row['p'] : null;
+
+            $estadisticas_cursos[$cid] = ['total_estudiantes' => $tot, 'promedio_p1' => ($p1 !== null && $p1 !== false) ? round((float)$p1, 2) : null, 'promedio_p2' => ($p2 !== null && $p2 !== false) ? round((float)$p2, 2) : null];
         }
     }
 }
@@ -92,7 +98,7 @@ if ($es_docente) {
 if ($es_director_carrera) {
     $car = esc($_SESSION["usuario"]["carrera"] ?? '');
     if($car) {
-        $sql = "SELECT u.id, u.nombres, u.email, u.rol, u.cedula, u.area, m.nombre AS materia, p.nombre AS paralelo, co.id AS curso_id, (SELECT COUNT(*) FROM usuario_cursos uc2 JOIN usuarios u2 ON uc2.usuario_id=u2.id WHERE uc2.curso_id=co.id AND u2.rol='estudiante') AS total_est, (SELECT COUNT(DISTINCT re.estudiante_id) FROM resultados_examen re JOIN examenes e ON re.examen_id=e.id WHERE e.curso_id=co.id AND re.puntaje_total!=-1) AS total_eval FROM usuarios u JOIN usuario_cursos uc ON u.id=uc.usuario_id JOIN cursos_oferta co ON uc.curso_id=co.id JOIN paralelos p ON co.paralelo_id=p.id JOIN materias m ON p.materia_id=m.id JOIN semestres s ON m.semestre_id=s.id JOIN carreras ca ON s.carrera_id=ca.id WHERE u.rol IN ('docente','director_area') AND ca.nombre='$car' ORDER BY u.nombres";
+        $sql = "SELECT u.id, u.nombres, u.email, u.rol, u.cedula, u.area, m.nombre AS materia, p.nombre AS paralelo, co.id AS curso_id, (SELECT COUNT(*) FROM usuario_cursos uc2 JOIN usuarios u2 ON uc2.usuario_id=u2.id WHERE uc2.curso_id=co.id AND u2.rol='estudiante') AS total_est, (SELECT COUNT(DISTINCT re.estudiante_id) FROM resultados_examen re JOIN examenes e ON re.examen_id=e.id WHERE e.curso_id=co.id AND re.puntaje_total != -1) AS total_eval FROM usuarios u JOIN usuario_cursos uc ON u.id=uc.usuario_id JOIN cursos_oferta co ON uc.curso_id=co.id JOIN paralelos p ON co.paralelo_id=p.id JOIN materias m ON p.materia_id=m.id JOIN semestres s ON m.semestre_id=s.id JOIN carreras ca ON s.carrera_id=ca.id WHERE u.rol IN ('docente','director_area') AND ca.nombre='$car' ORDER BY u.nombres";
         $res = $conn->query($sql);
         if($res) while($r=$res->fetch_assoc()) {
             $datos_carrera[$r['id']]['nombres']=$r['nombres']; $datos_carrera[$r['id']]['rol']=$r['rol']; $datos_carrera[$r['id']]['email']=$r['email']; $datos_carrera[$r['id']]['cedula']=$r['cedula']; $datos_carrera[$r['id']]['area']=$r['area']??'';
@@ -108,7 +114,7 @@ if ($es_director_area) {
         $mats_area = []; foreach ($mis_areas as $a) { $ae = esc($a); $rq = $conn->query("SELECT nombre_materia FROM areas_materias WHERE nombre_area='$ae'"); while($rm=$rq->fetch_assoc()) $mats_area[] = "UPPER(m.nombre) = '" . esc($rm['nombre_materia']) . "'"; }
         if (!empty($mats_area)) {
             $where_m = implode(' OR ', $mats_area);
-            $sql = "SELECT u.id, u.nombres, u.email, u.rol, u.cedula, m.nombre AS materia, p.nombre AS paralelo, co.id AS curso_id, (SELECT COUNT(*) FROM usuario_cursos uc2 JOIN usuarios u2 ON uc2.usuario_id=u2.id WHERE uc2.curso_id=co.id AND u2.rol='estudiante') AS total_est, (SELECT COUNT(DISTINCT re.estudiante_id) FROM resultados_examen re JOIN examenes e ON re.examen_id=e.id WHERE e.curso_id=co.id AND re.puntaje_total!=-1) AS total_eval FROM usuarios u JOIN usuario_cursos uc ON u.id=uc.usuario_id JOIN cursos_oferta co ON uc.curso_id=co.id JOIN paralelos p ON co.paralelo_id=p.id JOIN materias m ON p.materia_id=m.id WHERE u.rol IN ('docente','director_area') AND u.id != $usuario_id AND ($where_m) ORDER BY u.nombres";
+            $sql = "SELECT u.id, u.nombres, u.email, u.rol, u.cedula, m.nombre AS materia, p.nombre AS paralelo, co.id AS curso_id, (SELECT COUNT(*) FROM usuario_cursos uc2 JOIN usuarios u2 ON uc2.usuario_id=u2.id WHERE uc2.curso_id=co.id AND u2.rol='estudiante') AS total_est, (SELECT COUNT(DISTINCT re.estudiante_id) FROM resultados_examen re JOIN examenes e ON re.examen_id=e.id WHERE e.curso_id=co.id AND re.puntaje_total != -1) AS total_eval FROM usuarios u JOIN usuario_cursos uc ON u.id=uc.usuario_id JOIN cursos_oferta co ON uc.curso_id=co.id JOIN paralelos p ON co.paralelo_id=p.id JOIN materias m ON p.materia_id=m.id WHERE u.rol IN ('docente','director_area') AND u.id != $usuario_id AND ($where_m) ORDER BY u.nombres";
             $res = $conn->query($sql);
             if($res) while($r=$res->fetch_assoc()) {
                 $am = obtener_area_materia($r['materia']);
