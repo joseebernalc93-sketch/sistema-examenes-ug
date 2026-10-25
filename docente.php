@@ -1251,7 +1251,7 @@ function renderNotificacionesSeguridad(cursoId) {
     }
 
     let html = '<div style="max-height:280px; overflow:auto; border:1px solid #e2e8f0; border-radius:8px;">';
-    html += '<table><thead><tr><th style="width:160px;">Fecha</th><th style="width:260px;">Estudiante</th><th style="width:220px;">Examen</th><th>Razon</th></tr></thead><tbody>';
+    html += '<table><thead><tr><th style="width:150px;">Fecha</th><th style="width:240px;">Estudiante</th><th style="width:180px;">Examen</th><th>Razon</th><th style="width:180px; text-align:center;">Acciones</th></tr></thead><tbody>';
 
     items.forEach(n => {
         const fecha = formatearFechaNotif(n.fecha_creacion);
@@ -1265,6 +1265,10 @@ function renderNotificacionesSeguridad(cursoId) {
             <td><strong>${nombre}</strong>${ced}</td>
             <td>${examen}</td>
             <td>${razon}</td>
+            <td style="text-align:center; white-space:nowrap;">
+                <button type="button" class="btn btn-sm" style="background:#10b981; color:white; border:none; padding:4px 8px; margin-right:4px; font-weight:600; font-size:12px; border-radius:4px;" onclick="gestionarIntento(${n.examen_id}, ${n.estudiante_id}, 'reanudar')" title="Reanudar examen desde la pregunta donde se quedó">▶ Reanudar</button>
+                <button type="button" class="btn btn-sm" style="background:#f97316; color:white; border:none; padding:4px 8px; font-weight:600; font-size:12px; border-radius:4px;" onclick="gestionarIntento(${n.examen_id}, ${n.estudiante_id}, 'reiniciar')" title="Reiniciar examen desde el inicio">↻ Reiniciar</button>
+            </td>
         </tr>`;
     });
 
@@ -2409,13 +2413,14 @@ function abrirIntentos(examenId) {
                 <td>${i.fecha_inicio_real ? i.fecha_inicio_real.substring(0,16) : '--'}</td>
                 <td>${i.fecha_intento ? i.fecha_intento.substring(0,16) : '--'}</td>
                 <td style="text-align:center">${ptj}</td>
-                <td>
-                    <button class="btn btn-sm btn-outline" onclick="verRevision(${examenId}, ${i.estudiante_id})" title="Revisar">📖</button>
-                    <form method="POST" style="display:inline" onsubmit="return confirm('¿Rehabilitar intento?')">
-                        <input type="hidden" name="id_examen_rehab" value="${examenId}">
-                        <input type="hidden" name="id_estudiante_rehab" value="${i.estudiante_id}">
-                        <button name="rehabilitar_estudiante" type="submit" class="btn btn-sm btn-outline">↻</button>
-                    </form>
+                <td style="white-space:nowrap;">
+                    ${(i.seguridad_motivo || i.puntaje_total == -1) ? `
+                        <button type="button" class="btn btn-sm" style="background:#10b981; color:white; border:none; padding:4px 8px; margin-right:4px; font-weight:600; font-size:12px; border-radius:4px;" onclick="gestionarIntento(${examenId}, ${i.estudiante_id}, 'reanudar')" title="Reanudar examen desde donde se quedó (conserva sus respuestas)">▶ Reanudar</button>
+                        <button type="button" class="btn btn-sm" style="background:#f97316; color:white; border:none; padding:4px 8px; font-weight:600; font-size:12px; border-radius:4px;" onclick="gestionarIntento(${examenId}, ${i.estudiante_id}, 'reiniciar')" title="Reiniciar intento desde el inicio (borra respuestas)">↻ Reiniciar</button>
+                    ` : `
+                        <button class="btn btn-sm btn-outline" style="margin-right:4px;" onclick="verRevision(${examenId}, ${i.estudiante_id})" title="Revisar">📖</button>
+                        <button type="button" class="btn btn-sm btn-outline" onclick="gestionarIntento(${examenId}, ${i.estudiante_id}, 'reiniciar')" title="Reiniciar intento desde el inicio">↻</button>
+                    `}
                 </td>
             </tr>`;
         });
@@ -2423,6 +2428,34 @@ function abrirIntentos(examenId) {
     h += '</tbody></table>';
     document.getElementById('listaIntentos').innerHTML = h;
     document.getElementById('modalIntentos').style.display='flex';
+}
+
+function gestionarIntento(examenId, estudianteId, tipo) {
+    const textoAccion = (tipo === 'reanudar') 
+        ? '¿Deseas reanudar el examen al estudiante para que continúe desde donde se quedó (conservando sus respuestas ya respondidas)?' 
+        : '¿Deseas reiniciar el examen desde el inicio? (Se borrarán todas sus respuestas previas para comenzar de nuevo).';
+        
+    if (!confirm(textoAccion)) return;
+
+    const fd = new FormData();
+    fd.append('action', 'gestionar_intento_estudiante');
+    fd.append('examen_id', examenId);
+    fd.append('estudiante_id', estudianteId);
+    fd.append('tipo', tipo);
+
+    fetch('docente_core.php', { method: 'POST', body: fd, credentials: 'same-origin' })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) {
+            alert(data.error || 'No se pudo procesar la solicitud.');
+            return;
+        }
+        alert(data.mensaje || 'Operación completada con éxito.');
+        window.location.reload();
+    })
+    .catch(err => {
+        alert('Error de red al procesar la solicitud.');
+    });
 }
 
 function verRevision(eid, uid) {

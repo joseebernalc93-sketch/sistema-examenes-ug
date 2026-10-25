@@ -968,6 +968,19 @@ switch ($action) {
         $diff = $fecha_fin_final->getTimestamp() - $ahora->getTimestamp();
         $tiempo_restante = max(0, $diff);
         
+        // Verificar si el examen está pausado por alerta de seguridad activa
+        $sql_sec = "SELECT motivo FROM notificaciones_seguridad_examen 
+                    WHERE examen_id = $examen_id AND estudiante_id = $estudiante_id AND COALESCE(oculto_docente, 0) = 0 
+                    ORDER BY id DESC LIMIT 1";
+        $res_sec = $conn->query($sql_sec);
+        $esta_pausado = false;
+        $motivo_pausa = '';
+        if ($res_sec && $res_sec->num_rows > 0) {
+            $row_sec = $res_sec->fetch_assoc();
+            $esta_pausado = true;
+            $motivo_pausa = $row_sec['motivo'] ?: 'Examen pausado por motivos de seguridad o imprevisto.';
+        }
+
         // Si el examen está cerrado o el tiempo se acabó
         $examen_cerrado = ($examen['estado'] !== 'activo');
         $tiempo_agotado = ($tiempo_restante <= 0);
@@ -975,6 +988,8 @@ switch ($action) {
         if ($examen_cerrado || $tiempo_agotado) {
             responder([
                 'success' => true,
+                'pausado' => $esta_pausado,
+                'motivo_pausa' => $motivo_pausa,
                 'tiempo_restante' => 0,
                 'duracion_minutos' => $duracion_minutos,
                 'fecha_fin' => $examen['fecha_fin'],
@@ -986,9 +1001,11 @@ switch ($action) {
             ]);
         }
         
-        // El examen sigue activo
+        // El examen sigue activo (o pausado)
         responder([
             'success' => true,
+            'pausado' => $esta_pausado,
+            'motivo_pausa' => $motivo_pausa,
             'tiempo_restante' => $tiempo_restante,
             'tiempo_restante_formato' => sprintf('%02d:%02d:%02d', 
                 floor($tiempo_restante / 3600), 
@@ -1068,8 +1085,7 @@ switch ($action) {
             $orden_ids_safe = $conn->real_escape_string($orden_ids);
             $sql = "SELECT id, examen_id, enunciado, imagen, valor_puntos 
                     FROM preguntas 
-                    WHERE id IN ($orden_ids_safe) 
-                    ORDER BY FIELD(id, $orden_ids_safe)";
+                    WHERE id IN ($orden_ids_safe)";
         } else {
             $sql = "SELECT id, examen_id, enunciado, imagen, valor_puntos 
                     FROM preguntas 
@@ -1078,7 +1094,7 @@ switch ($action) {
         }
         
         $result = $conn->query($sql);
-        $preguntas = [];
+        $preguntas_map = [];
         
         if ($result) {
             while ($row = $result->fetch_assoc()) {
@@ -1115,8 +1131,25 @@ switch ($action) {
                 }
                 
                 $row['opciones'] = $opciones;
-                $preguntas[] = $row;
+                $preguntas_map[(int)$pid] = $row;
             }
+        }
+
+        // Ordenar en PHP según el orden asignado
+        $preguntas = [];
+        if (!empty($orden_preguntas_ids)) {
+            foreach ($orden_preguntas_ids as $pid) {
+                $pid = (int)$pid;
+                if (isset($preguntas_map[$pid])) {
+                    $preguntas[] = $preguntas_map[$pid];
+                    unset($preguntas_map[$pid]);
+                }
+            }
+            foreach ($preguntas_map as $p) {
+                $preguntas[] = $p;
+            }
+        } else {
+            $preguntas = array_values($preguntas_map);
         }
         
         // Calcular suma total para verificación
@@ -1143,6 +1176,21 @@ switch ($action) {
         
         if ($examen_id <= 0 || $estudiante_id <= 0) {
             responder(['success' => false, 'error' => 'IDs requeridos'], 400);
+        }
+        
+        // Verificar si el examen está pausado por alerta de seguridad activa
+        $sql_sec = "SELECT motivo FROM notificaciones_seguridad_examen 
+                    WHERE examen_id = $examen_id AND estudiante_id = $estudiante_id AND COALESCE(oculto_docente, 0) = 0 
+                    ORDER BY id DESC LIMIT 1";
+        $res_sec = $conn->query($sql_sec);
+        if ($res_sec && $res_sec->num_rows > 0) {
+            $row_sec = $res_sec->fetch_assoc();
+            $motivo_pausa = $row_sec['motivo'] ?: 'Examen pausado por motivos de seguridad o imprevisto.';
+            responder([
+                'success' => false,
+                'pausado' => true,
+                'error' => "⚠️ Examen en PAUSA:\n" . $motivo_pausa . "\n\nPor favor comunícate con tu docente para que reanude tu examen."
+            ], 200);
         }
         
         // Verificar si ya existe intento
@@ -1475,8 +1523,19 @@ switch ($action) {
         }
 
         $ok = registrarNotificacionSeguridadExamen($conn, $examen_id, $estudiante_id, $motivo, $tipo);
+        
+        // Guardar respuestas si fueron enviadas y mantener puntaje_total = -1 (pausado, no calificado)
+        if (!empty($datos['respuestas_json'])) {
+            $resp_json = is_string($datos['respuestas_json']) ? $datos['respuestas_json'] : json_encode($datos['respuestas_json']);
+            $resp_safe = $conn->real_escape_string($resp_json);
+            $conn->query("UPDATE resultados_examen SET respuestas_json = '$resp_safe', puntaje_total = -1 WHERE examen_id = $examen_id AND estudiante_id = $estudiante_id");
+        } else {
+            $conn->query("UPDATE resultados_examen SET puntaje_total = -1 WHERE examen_id = $examen_id AND estudiante_id = $estudiante_id AND puntaje_total != -1");
+        }
+
         responder([
             'success' => true,
+            'pausado' => true,
             'registrado' => $ok,
             'motivo' => $motivo,
             'tipo' => $tipo,

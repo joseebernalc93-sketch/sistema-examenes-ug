@@ -2769,35 +2769,28 @@ class App:
         progress.pack()
         progress.start(10)
 
-        def finalizar():
+        def pausar():
             motivo_seguridad = (
-                f"Cierre automatico por seguridad: se detectaron {num_pantallas} "
+                f"Bloqueo por seguridad: se detectaron {num_pantallas} "
                 f"dispositivo(s) de salida de video conectados."
             )
-            # Notificar al servidor inmediatamente el evento de seguridad
+            # Notificar al servidor inmediatamente el evento de seguridad y guardar respuestas
             try:
                 selenium_mgr.api_call('notificar_seguridad', {
                     'examen_id': ex_id,
                     'estudiante_id': est_id,
                     'tipo': 'salida_video_externa',
-                    'motivo': motivo_seguridad
+                    'motivo': motivo_seguridad,
+                    'respuestas_json': respuestas_guardadas
                 })
             except Exception as _e_notif:
                 log(f"Error al notificar seguridad: {_e_notif}")
 
-            result = selenium_mgr.api_call('finalizar_examen', {
-                'examen_id': ex_id,
-                'estudiante_id': est_id,
-                'notificar_seguridad': 1,
-                'tipo_evento': 'salida_video_externa',
-                'motivo': motivo_seguridad
-            })
-            log(f"<<< Respuesta finalizar por pantalla: {result}")
-            self.root.after(0, lambda: self.mostrar_resultado_por_pantalla(result, loading, num_pantallas))
+            self.root.after(0, lambda: self.mostrar_pantalla_pausa_seguridad(ex_id, est_id, num_pantallas, motivo_seguridad, loading))
 
-        threading.Thread(target=finalizar, daemon=True).start()
+        threading.Thread(target=pausar, daemon=True).start()
 
-    def mostrar_resultado_por_pantalla(self, result, loading, num_pantallas):
+    def mostrar_pantalla_pausa_seguridad(self, ex_id, est_id, num_pantallas, motivo, loading=None):
         try:
             if loading:
                 loading.destroy()
@@ -2813,59 +2806,122 @@ class App:
         cont = tk.Frame(frame, bg=COLORS['bg_white'])
         cont.place(relx=0.5, rely=0.5, anchor='center')
 
+        # Icono de alerta / pausa
         c = tk.Canvas(cont, width=180, height=140, bg=COLORS['bg_white'], highlightthickness=0)
         c.pack(pady=(0, 10))
         c.create_rectangle(35, 25, 145, 90, outline='#111827', width=3, fill='#f3f4f6')
         c.create_rectangle(70, 92, 110, 100, outline='#111827', width=2, fill='#e5e7eb')
         c.create_rectangle(60, 100, 120, 110, outline='#111827', width=2, fill='#e5e7eb')
-        c.create_oval(55, 35, 125, 105, outline=COLORS['danger'], width=6)
-        c.create_line(60, 100, 120, 40, fill=COLORS['danger'], width=6)
+        c.create_oval(55, 35, 125, 105, outline='#f59e0b', width=6)
+        c.create_rectangle(80, 58, 88, 84, fill='#f59e0b', outline='')
+        c.create_rectangle(94, 58, 102, 84, fill='#f59e0b', outline='')
 
-        tk.Label(cont, text="⚠️ EXAMEN FINALIZADO", font=('Calibri', 18, 'bold'),
-                 fg=COLORS['danger'], bg=COLORS['bg_white']).pack(pady=(0, 10))
+        tk.Label(cont, text="⚠️ EXAMEN PAUSADO POR SEGURIDAD", font=('Calibri', 18, 'bold'),
+                 fg='#b45309', bg=COLORS['bg_white']).pack(pady=(0, 8))
 
-        tk.Label(cont, text=f"Se detectaron {num_pantallas} dispositivos\nde salida de video conectados.",
-                 font=('Calibri', 12, 'bold'), fg=COLORS['text_dark'], bg=COLORS['bg_white'], justify='center').pack(pady=(0, 10))
+        tk.Label(cont, text=f"Se detectó un imprevisto / salida de video externa ({num_pantallas} pantalla(s) detectadas).",
+                 font=('Calibri', 12, 'bold'), fg=COLORS['text_dark'], bg=COLORS['bg_white'], justify='center').pack(pady=(0, 6))
 
-        tk.Label(cont, text=f"El examen fue calificado con las respuestas registradas",
-                 font=('Calibri', 10), fg=COLORS['danger'], bg='#fff5f5', 
-                 padx=15, pady=8, wraplength=400).pack(pady=(0, 15))
+        tk.Label(cont, text="Tus respuestas respondidas hasta el momento han sido guardadas de forma segura.",
+                 font=('Calibri', 11, 'bold'), fg=COLORS['success'], bg='#f0fdf4',
+                 padx=15, pady=8, wraplength=480).pack(pady=(0, 10))
 
-        if result.get('success'):
-            mostrar_nota = normalizar_bool(result.get('mostrar_nota'))
-            if mostrar_nota:
-                nota = result.get('nota', 0)
-                correctas = result.get('correctas', 0)
-                total = result.get('total', 0)
-                color = COLORS['success_dark'] if nota >= 7 else COLORS['danger']
-                
-                frame_nota = tk.Frame(cont, bg='#f3f4f6', padx=20, pady=15)
-                frame_nota.pack(pady=(0, 15))
-                
-                tk.Label(frame_nota, text="Tu nota:", font=('Calibri', 11), 
-                         fg=COLORS['text_muted'], bg='#f3f4f6').pack()
-                
-                tk.Label(frame_nota, text=f"{nota}/10", font=('Calibri', 32, 'bold'),
-                         fg=color, bg='#f3f4f6').pack(pady=5)
-                
-                tk.Label(frame_nota, text=f"Respuestas correctas: {correctas} de {total}",
-                         font=('Calibri', 10), fg=COLORS['text_muted'], bg='#f3f4f6').pack()
-            else:
-                tk.Label(cont, text="Examen registrado correctamente",
-                         font=('Calibri', 12), fg=COLORS['text_muted'], bg=COLORS['bg_white']).pack(pady=10)
+        msg_instrucciones = (
+            "Para poder continuar con tu examen:\n"
+            "1. Desconecta de inmediato cualquier pantalla externa o cable HDMI / VGA.\n"
+            "2. Comunícate con tu docente para que autorice y reanude tu examen.\n"
+            "3. Cuando el docente lo reanude, el examen continuará automáticamente."
+        )
+        tk.Label(cont, text=msg_instrucciones, font=('Calibri', 11),
+                 fg=COLORS['text_dark'], bg='#fffbeb', padx=20, pady=12, justify='left',
+                 relief='solid', bd=1).pack(pady=(0, 15))
+
+        lbl_estado_check = tk.Label(cont, text="⏳ Esperando autorización del docente...", font=('Calibri', 11, 'italic'),
+                                    fg='#b45309', bg=COLORS['bg_white'])
+        lbl_estado_check.pack(pady=(0, 15))
+
+        frame_btns = tk.Frame(cont, bg=COLORS['bg_white'])
+        frame_btns.pack()
+
+        self.pausa_seguridad_activa = True
+
+        def verificar_reanudacion():
+            if not getattr(self, "pausa_seguridad_activa", False):
+                return
+            hay_m, n_actual = hay_multiples_pantallas()
+            if hay_m:
+                lbl_estado_check.config(
+                    text=f"❌ Aún se detectan {n_actual} pantallas. Desconecta los monitores externos primero.",
+                    fg=COLORS['danger']
+                )
+                return
+
+            lbl_estado_check.config(text="🔄 Consultando autorización del docente...", fg=COLORS['primary'])
             
-            log(f"Examen finalizado por pantalla. Nota={result.get('nota')}")
-        else:
-            tk.Label(cont, text="⚠️ Error al calcular la nota\nTus respuestas fueron guardadas.\nContacta al docente.",
-                     font=('Calibri', 11), fg=COLORS['danger'], bg=COLORS['bg_white'], justify='center').pack(pady=10)
+            def consultar_api():
+                try:
+                    res = selenium_mgr.api_call('verificar_tiempo', {
+                        'examen_id': ex_id,
+                        'estudiante_id': est_id
+                    })
+                    if res.get('success'):
+                        if res.get('pausado'):
+                            lbl_estado_check.config(
+                                text="⏳ El docente aún no ha reanudado tu examen. Por favor solicítale que lo reanude.",
+                                fg='#b45309'
+                            )
+                        else:
+                            self.pausa_seguridad_activa = False
+                            lbl_estado_check.config(
+                                text="✅ ¡El docente ha reanudado tu examen! Continuando...",
+                                fg=COLORS['success']
+                            )
+                            self.root.after(1000, lambda: self.iniciar_intento_examen({'id': ex_id}))
+                    else:
+                        lbl_estado_check.config(text=f"Error: {res.get('error', 'Sin respuesta')}", fg=COLORS['danger'])
+                except Exception as ex_err:
+                    lbl_estado_check.config(text=f"Error de red: {ex_err}", fg=COLORS['danger'])
 
-        tk.Label(cont, text="RECUERDE: Solo debe usar UN monitor\ndurante el examen.",
-                 font=('Calibri', 10), fg=COLORS['text_muted'], bg=COLORS['bg_white'], justify='center').pack(pady=(10, 20))
+            threading.Thread(target=consultar_api, daemon=True).start()
 
-        tk.Button(cont, text="📚 Volver a mis exámenes", font=('Calibri', 11, 'bold'),
-                  bg=COLORS['primary'], fg='white', bd=0, padx=22, pady=8,
-                  activebackground=COLORS['primary_dark'], activeforeground='white',
-                  cursor='hand2', command=self.mostrar_examenes).pack()
+        btn_verificar = tk.Button(
+            frame_btns,
+            text="🔄 Comprobar si el docente reanudó",
+            font=('Calibri', 11, 'bold'),
+            bg=COLORS['success'],
+            fg='white',
+            bd=0,
+            padx=18,
+            pady=8,
+            activebackground=COLORS['success_dark'],
+            activeforeground='white',
+            cursor='hand2',
+            command=verificar_reanudacion
+        )
+        btn_verificar.pack(side='left', padx=6)
+
+        btn_salir = tk.Button(
+            frame_btns,
+            text="❌ Salir",
+            font=('Calibri', 11, 'bold'),
+            bg='#6b7280',
+            fg='white',
+            bd=0,
+            padx=18,
+            pady=8,
+            activebackground='#4b5563',
+            activeforeground='white',
+            cursor='hand2',
+            command=self.salir
+        )
+        btn_salir.pack(side='left', padx=6)
+
+        def auto_check_loop():
+            if getattr(self, "pausa_seguridad_activa", False):
+                verificar_reanudacion()
+                self.root.after(4000, auto_check_loop)
+
+        self.root.after(4000, auto_check_loop)
 
     # ===================================================
     #  SEGURIDAD: FORZAR PRIMER PLANO
@@ -3652,6 +3708,8 @@ class App:
                     'estudiante_id': usuario_actual['id']
                 })
                 if not res1.get('success'):
+                    if res1.get('pausado'):
+                        return {'pausado': True, 'error': res1.get('error', 'Examen en pausa')}
                     return {'error': res1.get('error', 'Error al iniciar')}
 
                 intento = res1['intento']
@@ -3668,6 +3726,7 @@ class App:
 
                 res3 = selenium_mgr.api_call('preguntas', {
                     'examen_id': examen['id'],
+                    'estudiante_id': usuario_actual['id'],
                     'orden_ids': intento.get('orden_preguntas', '')
                 })
 
@@ -3689,6 +3748,13 @@ class App:
                 pass
 
             btn.config(state='normal', text='▶️ Iniciar intento')
+
+            if data.get('pausado'):
+                ex_id = examen['id']
+                est_id = usuario_actual['id']
+                motivo = data.get('error', 'Examen en pausa por el docente o alerta de seguridad')
+                self.mostrar_pantalla_pausa_seguridad(ex_id, est_id, 1, motivo)
+                return
 
             if 'error' in data:
                 self.mostrar_mensaje_error("Error", data['error'])
@@ -4408,7 +4474,15 @@ class App:
             frame.configure(bg=COLORS['bg_light'])
 
             total = len(orden_preguntas_ids)
-            self.pagina_actual = pregunta_maxima_alcanzada if modo_secuencial else 1
+            if modo_secuencial:
+                self.pagina_actual = min(max(1, pregunta_maxima_alcanzada), max(1, total))
+            else:
+                primera_sin_responder = 1
+                for idx_p, pid_val in enumerate(orden_preguntas_ids, 1):
+                    if str(pid_val) not in respuestas_guardadas:
+                        primera_sin_responder = idx_p
+                        break
+                self.pagina_actual = primera_sin_responder
             self.examen_id_actual = examen_id
 
             # ========= HEADER ESTILO MOODLE =========
@@ -5137,6 +5211,16 @@ class App:
             return
         
         if not result or not result.get('success'):
+            return
+
+        if result.get('pausado'):
+            log(">>> Servidor reportó examen pausado por el docente o alerta de seguridad")
+            examen_activo = False
+            self._verificacion_tiempo_activa = False
+            ex_id = self.examen_id_actual
+            est_id = usuario_actual['id'] if (usuario_actual and 'id' in usuario_actual) else None
+            motivo = result.get('motivo_pausa', 'Examen en pausa')
+            self.mostrar_pantalla_pausa_seguridad(ex_id, est_id, 1, motivo)
             return
         
         # Sincronizar el modo de navegación si el docente lo cambió en tiempo real

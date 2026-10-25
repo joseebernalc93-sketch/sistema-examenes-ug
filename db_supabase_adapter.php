@@ -219,8 +219,8 @@ class SupabasePdoAdapter {
         // Corregir operadores seguidos directamente de números negativos (ej. !=-1 -> != -1) para evitar operador inválido en PG
         $sql = preg_replace('/([!<>]=?|=)(-[\d\.]+)/', '$1 $2', $sql);
 
-        // Traducir FIELD(col, a, b, c) -> COALESCE(array_position(ARRAY[a, b, c], col::text), 999)
-        $sql = preg_replace('/FIELD\s*\(\s*([\w\.]+)\s*,\s*(.*?)\s*\)/i', 'COALESCE(array_position(ARRAY[$2], $1::text), 999)', $sql);
+        // Traducir FIELD(col, a, b, c) -> COALESCE(array_position(ARRAY[a, b, c]::text[], col::text), 999)
+        $sql = preg_replace('/FIELD\s*\(\s*([\w\.]+)\s*,\s*(.*?)\s*\)/i', 'COALESCE(array_position(ARRAY[$2]::text[], $1::text), 999)', $sql);
 
         // Traducir RAND() -> RANDOM()
         $sql = preg_replace('/\bRAND\s*\(\s*\)/i', 'RANDOM()', $sql);

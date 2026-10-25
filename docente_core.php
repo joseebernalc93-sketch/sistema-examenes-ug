@@ -295,6 +295,133 @@ function obtenerCursoPorExamen($examen_id) {
     return null;
 }
 
+function generarYEnviarDocxExamen($conn, $eid, $original_name = 'examen.docx') {
+    $eid = (int)$eid;
+    $sql_ex = "SELECT e.*, m.nombre AS materia, p.nombre AS paralelo 
+               FROM examenes e 
+               LEFT JOIN cursos_oferta co ON e.curso_id = co.id 
+               LEFT JOIN paralelos p ON co.paralelo_id = p.id 
+               LEFT JOIN materias m ON p.materia_id = m.id 
+               WHERE e.id = $eid LIMIT 1";
+    $res_ex = $conn->query($sql_ex);
+    $examen = ($res_ex && $res_ex->num_rows > 0) ? $res_ex->fetch_assoc() : null;
+    if (!$examen) return false;
+
+    $sql_p = "SELECT id, enunciado, imagen, valor_puntos FROM preguntas WHERE examen_id = $eid ORDER BY id ASC";
+    $res_p = $conn->query($sql_p);
+    $preguntas = [];
+    if ($res_p) {
+        while ($p = $res_p->fetch_assoc()) {
+            $pid = (int)$p['id'];
+            $sql_o = "SELECT contenido, imagen, es_correcta, indice FROM opciones_pregunta WHERE pregunta_id = $pid ORDER BY indice ASC, id ASC";
+            $res_o = $conn->query($sql_o);
+            $p['opciones'] = [];
+            if ($res_o) {
+                while ($o = $res_o->fetch_assoc()) {
+                    $p['opciones'][] = $o;
+                }
+            }
+            $preguntas[] = $p;
+        }
+    }
+
+    if (empty($preguntas)) return false;
+
+    if (!class_exists('ZipArchive')) return false;
+
+    $tmp_docx = tempnam(sys_get_temp_dir(), 'docx_');
+    $zip = new ZipArchive();
+    if ($zip->open($tmp_docx, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+        return false;
+    }
+
+    $content_types = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' . "\n" .
+'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' . "\n" .
+'  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' . "\n" .
+'  <Default Extension="xml" ContentType="application/xml"/>' . "\n" .
+'  <Default Extension="png" ContentType="image/png"/>' . "\n" .
+'  <Default Extension="jpeg" ContentType="image/jpeg"/>' . "\n" .
+'  <Default Extension="jpg" ContentType="image/jpeg"/>' . "\n" .
+'  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' . "\n" .
+'</Types>';
+    $zip->addFromString('[Content_Types].xml', $content_types);
+
+    $rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' . "\n" .
+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' . "\n" .
+'  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>' . "\n" .
+'</Relationships>';
+    $zip->addFromString('_rels/.rels', $rels);
+
+    $titulo = htmlspecialchars($examen['titulo'] ?? 'Examen', ENT_XML1, 'UTF-8');
+    $materia = htmlspecialchars($examen['materia'] ?? '', ENT_XML1, 'UTF-8');
+    $paralelo = htmlspecialchars($examen['paralelo'] ?? '', ENT_XML1, 'UTF-8');
+    $duracion = (int)($examen['duracion_minutos'] ?? 60);
+
+    $body_xml = '';
+    $body_xml .= '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="32"/><w:color w:val="1E3A8A"/></w:rPr><w:t>UNIVERSIDAD DE GUAYAQUIL</w:t></w:r></w:p>';
+    $body_xml .= '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="26"/><w:color w:val="2563EB"/></w:rPr><w:t>' . $titulo . '</w:t></w:r></w:p>';
+    $body_xml .= '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:sz w:val="20"/><w:color w:val="64748B"/></w:rPr><w:t>Materia: ' . $materia . ' | Paralelo: ' . $paralelo . ' | Duración: ' . $duracion . ' min</w:t></w:r></w:p>';
+    $body_xml .= '<w:p><w:r><w:t></w:t></w:r></w:p>';
+
+    $letras = ['A', 'B', 'C', 'D', 'E', 'F'];
+    foreach ($preguntas as $idx => $preg) {
+        $num = $idx + 1;
+        $enunciado = htmlspecialchars($preg['enunciado'], ENT_XML1, 'UTF-8');
+        $pts = round((float)($preg['valor_puntos'] ?? 1.0), 2);
+
+        $body_xml .= '<w:p><w:pPr><w:spacing w:before="240" w:after="80"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="22"/><w:color w:val="0F172A"/></w:rPr><w:t>' . $num . '. ' . $enunciado . '</w:t></w:r><w:r><w:rPr><w:sz w:val="18"/><w:color w:val="64748B"/></w:rPr><w:t> (Pts: ' . $pts . ')</w:t></w:r></w:p>';
+
+        $correcta_letra = '';
+        foreach ($preg['opciones'] as $o_idx => $op) {
+            $letra = $letras[$o_idx] ?? chr(65 + $o_idx);
+            $txt_op = htmlspecialchars($op['contenido'], ENT_XML1, 'UTF-8');
+            $es_corr = (int)($op['es_correcta'] ?? 0);
+            if ($es_corr === 1) {
+                $correcta_letra = $letra;
+                $body_xml .= '<w:p><w:pPr><w:ind w:left="400"/><w:spacing w:after="40"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="20"/><w:color w:val="15803D"/></w:rPr><w:t>' . $letra . ') ' . $txt_op . '</w:t></w:r></w:p>';
+            } else {
+                $body_xml .= '<w:p><w:pPr><w:ind w:left="400"/><w:spacing w:after="40"/></w:pPr><w:r><w:rPr><w:sz w:val="20"/><w:color w:val="334155"/></w:rPr><w:t>' . $letra . ') ' . $txt_op . '</w:t></w:r></w:p>';
+            }
+        }
+        if ($correcta_letra !== '') {
+            $body_xml .= '<w:p><w:pPr><w:ind w:left="400"/><w:spacing w:before="60" w:after="160"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="20"/><w:color w:val="15803D"/></w:rPr><w:t>RESPUESTA: ' . $correcta_letra . '</w:t></w:r></w:p>';
+        }
+    }
+
+    $doc_xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' . "\n" .
+'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' . "\n" .
+'  <w:body>' . $body_xml . "\n" .
+'    <w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr>' . "\n" .
+'  </w:body>' . "\n" .
+'</w:document>';
+
+    $zip->addFromString('word/document.xml', $doc_xml);
+    $zip->close();
+
+    if (!file_exists($tmp_docx) || filesize($tmp_docx) == 0) {
+        return false;
+    }
+
+    $cache_dir = obtenerDirectorioUploads();
+    if (!empty($cache_dir) && is_dir($cache_dir)) {
+        @copy($tmp_docx, $cache_dir . 'examen_' . $eid . '.docx');
+    }
+
+    if (ob_get_level()) ob_end_clean();
+    $download_name = !empty($original_name) ? basename($original_name) : ("Examen_" . $eid . ".docx");
+    if (!preg_match('/\.docx$/i', $download_name)) $download_name .= '.docx';
+
+    header('Content-Description: File Transfer');
+    header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    header('Content-Disposition: attachment; filename="' . $download_name . '"');
+    header('Expires: 0');
+    header('Cache-Control: must-revalidate');
+    header('Content-Length: ' . filesize($tmp_docx));
+    readfile($tmp_docx);
+    @unlink($tmp_docx);
+    exit;
+}
+
 // --- DESCARGAR EXAMEN WORD ---
 if (isset($_GET['download_doc'])) {
     $eid = (int)$_GET['download_doc'];
@@ -317,7 +444,13 @@ if (isset($_GET['download_doc'])) {
             header('Content-Length: ' . filesize($file_path));
             readfile($file_path);
             exit;
-        } else { $_SESSION['mensaje_flash'] = "<div class='alert-error'>El archivo físico no se encuentra.</div>"; }
+        } else {
+            // Si el archivo físico no existe (común en serverless / Vercel), generarlo al vuelo desde las preguntas de la BD
+            if (generarYEnviarDocxExamen($conn, $eid, $original_name)) {
+                exit;
+            }
+            $_SESSION['mensaje_flash'] = "<div class='alert-error'>El archivo físico no se encuentra y no pudo ser generado.</div>";
+        }
     } else { $_SESSION['mensaje_flash'] = "<div class='alert-error'>No tienes permiso.</div>"; }
     header("Location: " . basename($_SERVER['PHP_SELF'])); exit;
 }
@@ -533,6 +666,67 @@ if (isset($_POST['action'])) {
         );
 
         echo json_encode(['success' => true, 'ocultadas' => $afectadas]);
+        exit;
+    }
+
+    // =========================================
+    // REANUDAR O REINICIAR INTENTO DE ESTUDIANTE
+    // =========================================
+    if ($_POST['action'] === 'gestionar_intento_estudiante') {
+        $eid = (int)($_POST['examen_id'] ?? 0);
+        $uid = (int)($_POST['estudiante_id'] ?? 0);
+        $tipo = trim((string)($_POST['tipo'] ?? 'reanudar')); // 'reanudar' o 'reiniciar'
+
+        if ($eid <= 0 || $uid <= 0) {
+            echo json_encode(['success' => false, 'error' => 'IDs requeridos']);
+            exit;
+        }
+
+        $cid = obtenerCursoPorExamen($eid);
+        $perm = $conn->query("SELECT 1 FROM usuario_cursos WHERE usuario_id = $usuario_id AND curso_id = $cid LIMIT 1");
+        if (!$perm || $perm->num_rows == 0) {
+            echo json_encode(['success' => false, 'error' => 'Sin permiso para este curso']);
+            exit;
+        }
+
+        $resNom = $conn->query("SELECT nombres FROM usuarios WHERE id = $uid LIMIT 1");
+        $nombre_est = ($resNom && $rNom = $resNom->fetch_assoc()) ? trim((string)$rNom['nombres']) : "Estudiante #$uid";
+
+        if ($tipo === 'reanudar') {
+            // Desbloquear al estudiante ocultando la alerta de seguridad para el docente
+            $conn->query("UPDATE notificaciones_seguridad_examen 
+                          SET oculto_docente = 1 
+                          WHERE examen_id = $eid AND estudiante_id = $uid");
+
+            // Mantener puntaje_total en -1 para que la app permita continuar
+            $conn->query("UPDATE resultados_examen 
+                          SET puntaje_total = -1 
+                          WHERE examen_id = $eid AND estudiante_id = $uid");
+
+            registrar_log($usuario_id, $usuario_nombre, 'docente', 'REANUDAR_EXAMEN', 'Intento', $uid, "$nombre_est | Examen $eid (Reanudado desde donde se quedó)");
+
+            echo json_encode([
+                'success' => true,
+                'tipo' => 'reanudar',
+                'mensaje' => "El examen de $nombre_est ha sido reanudado. Podrá continuar desde donde se quedó."
+            ]);
+        } else {
+            // Reiniciar intento desde el inicio
+            $conn->query("UPDATE notificaciones_seguridad_examen 
+                          SET oculto_docente = 1 
+                          WHERE examen_id = $eid AND estudiante_id = $uid");
+
+            $conn->query("DELETE FROM resultados_examen 
+                          WHERE examen_id = $eid AND estudiante_id = $uid");
+
+            registrar_log($usuario_id, $usuario_nombre, 'docente', 'REINICIAR_EXAMEN', 'Intento', $uid, "$nombre_est | Examen $eid (Reiniciado desde el inicio)");
+
+            echo json_encode([
+                'success' => true,
+                'tipo' => 'reiniciar',
+                'mensaje' => "El intento de $nombre_est ha sido reiniciado. Podrá comenzar un nuevo intento desde cero."
+            ]);
+        }
         exit;
     }
 
@@ -1415,13 +1609,25 @@ if ($es_docente && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if (isset($_POST['rehabilitar_estudiante'])) {
         $ide = (int)$_POST['id_examen_rehab']; $idu = (int)$_POST['id_estudiante_rehab'];
+        $tipo = trim((string)($_POST['tipo_rehab'] ?? 'reanudar'));
         $nombre_rehabilitado = '';
         $resNomRehab = $conn->query("SELECT nombres FROM usuarios WHERE id=$idu LIMIT 1");
         if ($resNomRehab && $rowNomRehab = $resNomRehab->fetch_assoc()) { $nombre_rehabilitado = trim((string)$rowNomRehab['nombres']); }
-        $conn->query("DELETE FROM resultados_examen WHERE examen_id=$ide AND estudiante_id=$idu");
-        $detalleRehab = ($nombre_rehabilitado !== '') ? ($nombre_rehabilitado . " | Examen $ide") : "Examen $ide";
-        registrar_log($usuario_id, $usuario_nombre, 'docente', 'REHABILITAR', 'Intento', $idu, $detalleRehab);
-        redirigirConMensaje("<div class='alert-success'>Rehabilitado.</div>", obtenerCursoPorExamen($ide));
+        
+        // Quitar alerta de seguridad para desbloquear
+        $conn->query("UPDATE notificaciones_seguridad_examen SET oculto_docente = 1 WHERE examen_id=$ide AND estudiante_id=$idu");
+        
+        if ($tipo === 'reanudar') {
+            $conn->query("UPDATE resultados_examen SET puntaje_total = -1 WHERE examen_id=$ide AND estudiante_id=$idu");
+            $detalleRehab = ($nombre_rehabilitado !== '') ? ($nombre_rehabilitado . " | Examen $ide (Reanudado)") : "Examen $ide (Reanudado)";
+            registrar_log($usuario_id, $usuario_nombre, 'docente', 'REANUDAR', 'Intento', $idu, $detalleRehab);
+            redirigirConMensaje("<div class='alert-success'>Examen de $nombre_rehabilitado reanudado. Podrá continuar desde donde se quedó.</div>", obtenerCursoPorExamen($ide));
+        } else {
+            $conn->query("DELETE FROM resultados_examen WHERE examen_id=$ide AND estudiante_id=$idu");
+            $detalleRehab = ($nombre_rehabilitado !== '') ? ($nombre_rehabilitado . " | Examen $ide (Reiniciado)") : "Examen $ide (Reiniciado)";
+            registrar_log($usuario_id, $usuario_nombre, 'docente', 'REHABILITAR', 'Intento', $idu, $detalleRehab);
+            redirigirConMensaje("<div class='alert-success'>Intento de $nombre_rehabilitado reiniciado desde el inicio.</div>", obtenerCursoPorExamen($ide));
+        }
     }
     if (isset($_POST['eliminar_examen'])) {
         $id = (int)$_POST['id_examen']; 
