@@ -1,12 +1,33 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
 
+block_cipher = None
 
 a = Analysis(
     ['examen_seguro.py'],
     pathex=[],
     binaries=[],
-    datas=[('D:\\Proyectos\\examen_seguro\\examen_seguro\\Imagenes\\LogoUGcolor.ico', 'Imagenes'), ('D:\\Proyectos\\examen_seguro\\examen_seguro\\Imagenes\\LogoUGcolor.png', 'Imagenes')],
-    hiddenimports=[],
+    datas=[
+        ('Imagenes/LogoUGcolor.png', 'Imagenes'),
+        ('Imagenes/LogoUGcolor.ico', 'Imagenes')
+    ],
+    hiddenimports=[
+        'screeninfo',
+        'wmi',
+        'keyboard',
+        'psutil',
+        'PIL',
+        'PIL.Image',
+        'PIL.ImageTk',
+        'selenium',
+        'selenium.webdriver',
+        'selenium.webdriver.common.by',
+        'undetected_chromedriver',
+        'win32gui',
+        'win32con',
+        'win32process',
+        'win32api'
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -14,7 +35,7 @@ a = Analysis(
     noarchive=False,
     optimize=0,
 )
-pyz = PYZ(a.pure)
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 exe = EXE(
     pyz,
@@ -35,5 +56,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['D:\\Proyectos\\examen_seguro\\examen_seguro\\Imagenes\\LogoUGcolor.ico'],
+    icon='Imagenes/LogoUGcolor.ico',
 )
