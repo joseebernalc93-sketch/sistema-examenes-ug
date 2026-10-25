@@ -1,0 +1,8 @@
+# Excluir binarios y carpetas pesadas de Vercel
+apk python/
+app-escritorio/
+*.sql
+formatos/*.docx
+formatos/*.xlsx
+.git/
+.vscode/

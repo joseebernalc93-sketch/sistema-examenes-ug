@@ -1,13 +1,7 @@
 {
   "version": 2,
   "functions": {
-    "api_examen.php": {
-      "runtime": "vercel-php@0.7.2"
-    },
-    "*.php": {
-      "runtime": "vercel-php@0.7.2"
-    },
-    "secciones/*.php": {
+    "api/index.php": {
       "runtime": "vercel-php@0.7.2"
     }
   },
@@ -29,16 +23,8 @@
       "dest": "/formatos/$1"
     },
     {
-      "src": "/secciones/(.*)",
-      "dest": "/secciones/$1"
-    },
-    {
-      "src": "/",
-      "dest": "/index.php"
-    },
-    {
       "src": "/(.*)",
-      "dest": "/$1"
+      "dest": "/api/index.php"
     }
   ]
 }
