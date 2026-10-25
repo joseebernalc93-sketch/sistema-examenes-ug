@@ -132,7 +132,12 @@ class SupabaseStmt {
             }
             $success = $this->stmt->execute();
             $this->affected_rows = $this->stmt->rowCount();
-            $this->insert_id = (int)$this->pdo->lastInsertId();
+            $this->insert_id = 0;
+            try {
+                $this->insert_id = (int)$this->pdo->lastInsertId();
+            } catch (Throwable $e) {
+                $this->insert_id = 0;
+            }
             return $success;
         } catch (Throwable $e) {
             $this->error = $e->getMessage();
@@ -248,7 +253,14 @@ class SupabasePdoAdapter {
                 return new SupabaseResult($stmt);
             } else {
                 $this->affected_rows = $this->pdo->exec($translated);
-                $this->insert_id = (int)$this->pdo->lastInsertId();
+                $this->insert_id = 0;
+                if (strpos($trimmed, 'INSERT') === 0) {
+                    try {
+                        $this->insert_id = (int)$this->pdo->lastInsertId();
+                    } catch (Throwable $e) {
+                        $this->insert_id = 0;
+                    }
+                }
                 return true;
             }
         } catch (Throwable $e) {
