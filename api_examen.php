@@ -832,7 +832,14 @@ switch ($action) {
                     re.fecha_intento,
                     re.orden_preguntas,
                     re.respuestas_json,
-                    re.fecha_inicio_real
+                    re.pregunta_actual,
+                    re.fecha_inicio_real,
+                    (SELECT ns.motivo FROM notificaciones_seguridad_examen ns 
+                     WHERE ns.examen_id = e.id AND ns.estudiante_id = $estudiante_id AND COALESCE(ns.oculto_docente, 0) = 0 
+                     ORDER BY ns.fecha_creacion DESC, ns.id DESC LIMIT 1) AS seguridad_motivo,
+                    (SELECT ns.tipo FROM notificaciones_seguridad_examen ns 
+                     WHERE ns.examen_id = e.id AND ns.estudiante_id = $estudiante_id AND COALESCE(ns.oculto_docente, 0) = 0 
+                     ORDER BY ns.fecha_creacion DESC, ns.id DESC LIMIT 1) AS seguridad_tipo
                 FROM examenes e
                 JOIN cursos_oferta co ON e.curso_id = co.id
                 JOIN usuario_cursos uc ON uc.curso_id = co.id
@@ -854,6 +861,29 @@ switch ($action) {
         
         if ($result) {
             while ($row = $result->fetch_assoc()) {
+                $orden_arr = !empty($row['orden_preguntas']) ? array_filter(explode(',', $row['orden_preguntas'])) : [];
+                $resp_arr = !empty($row['respuestas_json']) ? json_decode($row['respuestas_json'], true) : [];
+                $total_p = count($orden_arr) > 0 ? count($orden_arr) : (int)($row['cant_preguntas_mostrar'] ?: 0);
+                $resp_p = is_array($resp_arr) ? count($resp_arr) : 0;
+                $act_p = (int)($row['pregunta_actual'] ?? 0);
+                if ($act_p <= 0) {
+                    $act_p = $total_p > 0 ? min($total_p, $resp_p + 1) : 1;
+                }
+
+                $nota_num = ($row['nota_registrada'] !== null && $row['nota_registrada'] !== '') ? floatval($row['nota_registrada']) : null;
+                $en_progreso = ($nota_num === -1.0);
+                $ya_rendido = ($nota_num !== null && $nota_num >= 0.0);
+                $esta_pausado = !empty($row['seguridad_motivo']) && $en_progreso;
+
+                $row['total_preguntas'] = $total_p;
+                $row['respondidas_count'] = $resp_p;
+                $row['pregunta_actual'] = $act_p;
+                $row['en_progreso'] = $en_progreso;
+                $row['ya_rendido'] = $ya_rendido;
+                $row['esta_pausado'] = $esta_pausado;
+                $row['motivo_pausa'] = $row['seguridad_motivo'] ?? '';
+                $row['nota_float'] = $nota_num;
+
                 $examenes[] = $row;
             }
         }
@@ -981,6 +1011,22 @@ switch ($action) {
             $motivo_pausa = $row_sec['motivo'] ?: 'Examen pausado por motivos de seguridad o imprevisto.';
         }
 
+        if ($esta_pausado) {
+            responder([
+                'success' => true,
+                'pausado' => true,
+                'motivo_pausa' => $motivo_pausa,
+                'tiempo_restante' => max(0, $tiempo_restante),
+                'duracion_minutos' => $duracion_minutos,
+                'fecha_fin' => $examen['fecha_fin'],
+                'fecha_fin_efectiva' => $fecha_fin_final->format('Y-m-d H:i:s'),
+                'examen_activo' => false,
+                'debe_finalizar' => false,
+                'preguntas_secuenciales' => (int)$examen['preguntas_secuenciales'],
+                'motivo' => $motivo_pausa
+            ]);
+        }
+
         // Si el examen está cerrado o el tiempo se acabó
         $examen_cerrado = ($examen['estado'] !== 'activo');
         $tiempo_agotado = ($tiempo_restante <= 0);
@@ -988,8 +1034,8 @@ switch ($action) {
         if ($examen_cerrado || $tiempo_agotado) {
             responder([
                 'success' => true,
-                'pausado' => $esta_pausado,
-                'motivo_pausa' => $motivo_pausa,
+                'pausado' => false,
+                'motivo_pausa' => '',
                 'tiempo_restante' => 0,
                 'duracion_minutos' => $duracion_minutos,
                 'fecha_fin' => $examen['fecha_fin'],

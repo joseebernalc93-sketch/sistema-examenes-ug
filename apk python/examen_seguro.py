@@ -81,52 +81,59 @@ APP_NAME = "Sistema de Exámenes UG"
 APP_ID = "UG.ExamenSeguro.V9_7.FullBlocker"
 
 # =======================================================
-#  COLORES ESTILO MOODLE
+#  COLORES INSTITUCIONALES UG - PALETA PROFESIONAL
 # =======================================================
 COLORS = {
-    'primary': '#0f6cb6',          # Azul Moodle
-    'primary_dark': '#0a4b7f',
-    'secondary': '#5a6872',         # Gris oscuro
-    'success': '#22c55e',           # Verde
-    'success_dark': '#166534',
-    'danger': '#dc2626',            # Rojo
-    'warning': '#f59e0b',           # Naranja
-    'info': '#3b82f6',              # Azul info
-    'bg_light': '#f4f4f4',          # Fondo claro Moodle
+    'primary': '#0b4f8a',          # Azul Institucional UG
+    'primary_dark': '#07335c',     # Azul Marino Profundo UG
+    'primary_light': '#e0f2fe',    # Azul Claro Suave
+    'accent': '#1d4ed8',           # Azul Vibrante
+    'secondary': '#475569',        # Gris Pizarra Slate 600
+    'success': '#059669',          # Verde Esmeralda 600
+    'success_dark': '#047857',     # Verde Esmeralda 700
+    'success_light': '#ecfdf5',    # Verde Claro Suave
+    'danger': '#dc2626',           # Rojo Coral
+    'danger_dark': '#b91c1c',
+    'danger_light': '#fef2f2',
+    'warning': '#d97706',          # Ámbar 600
+    'warning_dark': '#b45309',
+    'warning_light': '#fffbeb',
+    'info': '#0284c7',             # Cyan/Azul Info
+    'info_light': '#f0f9ff',
+    'bg_light': '#f8fafc',         # Fondo Pizarra Claro Ultra Limpio
     'bg_white': '#ffffff',
-    'bg_section': '#e7f3f5',        # Fondo sección preguntas
-    'question_bg': '#e6f7fb',
-    'border': '#dee2e6',
-    'text_dark': '#373a3c',
-    'text_muted': '#6c757d',
-    'badge_libre': '#10b981',       # Verde para Libre
-    'badge_secuencial': '#f59e0b',  # Naranja para Secuencial
-    'card_border_active': '#22c55e',
+    'bg_section': '#f1f5f9',       # Fondo Sección
+    'question_bg': '#f8fafc',
+    'border': '#e2e8f0',           # Borde Slate Sutil
+    'border_dark': '#cbd5e1',
+    'text_dark': '#0f172a',        # Texto Casi Negro Slate 900
+    'text_muted': '#64748b',       # Texto Secundario Slate 500
+    'badge_libre': '#0891b2',      # Cyan
+    'badge_secuencial': '#7c3aed', # Púrpura Elegante
+    'card_border_active': '#10b981',
     'card_border_pending': '#f59e0b',
-    'card_border_closed': '#dc2626',
-    # Colores para recuadros elegantes
-    'enunciado_bg': '#f0f9ff',      # Fondo azul muy claro para enunciado
-    'enunciado_border': '#bfdbfe',  # Borde azul suave
-    'opcion_bg': '#fefefe',         # Fondo casi blanco para opciones
-    'opcion_border': '#e2e8f0',     # Borde gris suave
-    'opcion_hover': '#f1f5f9',      # Hover de opciones
-    'imagen_border': '#374151',     # Borde oscuro fino para imágenes
-    'zoom_btn_bg': '#1e293b',       # Fondo botón zoom
-    'zoom_btn_fg': '#ffffff',       # Texto botón zoom
-    # Colores para cards de exámenes mejoradas
+    'card_border_closed': '#94a3b8',
+    'enunciado_bg': '#f8fafc',
+    'enunciado_border': '#cbd5e1',
+    'opcion_bg': '#ffffff',
+    'opcion_border': '#e2e8f0',
+    'opcion_hover': '#f1f5f9',
+    'imagen_border': '#334155',
+    'zoom_btn_bg': '#0f172a',
+    'zoom_btn_fg': '#ffffff',
     'card_bg': '#ffffff',
     'card_shadow': '#e2e8f0',
     'card_header_activo': '#ecfdf5',
-    'card_header_cerrado': '#fef2f2',
+    'card_header_cerrado': '#f1f5f9',
     'card_header_pendiente': '#fffbeb',
     'card_header_completado': '#f0fdf4',
     'badge_activo_bg': '#059669',
-    'badge_cerrado_bg': '#dc2626',
+    'badge_cerrado_bg': '#64748b',
     'badge_pendiente_bg': '#d97706',
     'badge_secuencial_bg': '#7c3aed',
     'badge_libre_bg': '#0891b2',
     'info_icon': '#64748b',
-    'divider': '#f1f5f9',
+    'divider': '#e2e8f0',
 }
 
 # =======================================================
@@ -2801,44 +2808,66 @@ class App:
         self.root.state('zoomed')
 
         frame = self.limpiar_frame()
-        frame.configure(bg=COLORS['bg_white'])
+        frame.configure(bg=COLORS['bg_light'])
 
-        cont = tk.Frame(frame, bg=COLORS['bg_white'])
+        cont = tk.Frame(frame, bg=COLORS['bg_white'], padx=40, pady=35,
+                        highlightbackground=COLORS['border'], highlightthickness=1)
         cont.place(relx=0.5, rely=0.5, anchor='center')
 
-        # Icono de alerta / pausa
-        c = tk.Canvas(cont, width=180, height=140, bg=COLORS['bg_white'], highlightthickness=0)
-        c.pack(pady=(0, 10))
-        c.create_rectangle(35, 25, 145, 90, outline='#111827', width=3, fill='#f3f4f6')
-        c.create_rectangle(70, 92, 110, 100, outline='#111827', width=2, fill='#e5e7eb')
-        c.create_rectangle(60, 100, 120, 110, outline='#111827', width=2, fill='#e5e7eb')
-        c.create_oval(55, 35, 125, 105, outline='#f59e0b', width=6)
-        c.create_rectangle(80, 58, 88, 84, fill='#f59e0b', outline='')
-        c.create_rectangle(94, 58, 102, 84, fill='#f59e0b', outline='')
+        es_pausa_docente = ('docente' in str(motivo).lower()) or (num_pantallas <= 1)
 
-        tk.Label(cont, text="⚠️ EXAMEN PAUSADO POR SEGURIDAD", font=('Calibri', 18, 'bold'),
-                 fg='#b45309', bg=COLORS['bg_white']).pack(pady=(0, 8))
+        # Encabezado con Icono
+        icon_txt = "⏸️" if es_pausa_docente else "⚠️"
+        titulo_txt = "EXAMEN PAUSADO POR EL DOCENTE" if es_pausa_docente else "EXAMEN PAUSADO POR SEGURIDAD"
+        titulo_fg = '#d97706' if es_pausa_docente else '#dc2626'
 
-        tk.Label(cont, text=f"Se detectó un imprevisto / salida de video externa ({num_pantallas} pantalla(s) detectadas).",
-                 font=('Calibri', 12, 'bold'), fg=COLORS['text_dark'], bg=COLORS['bg_white'], justify='center').pack(pady=(0, 6))
+        tk.Label(cont, text=icon_txt, font=('Segoe UI', 38), bg=COLORS['bg_white']).pack(pady=(0, 5))
+        tk.Label(cont, text=titulo_txt, font=('Segoe UI', 18, 'bold'),
+                 fg=titulo_fg, bg=COLORS['bg_white']).pack(pady=(0, 6))
 
-        tk.Label(cont, text="Tus respuestas respondidas hasta el momento han sido guardadas de forma segura.",
-                 font=('Calibri', 11, 'bold'), fg=COLORS['success'], bg='#f0fdf4',
-                 padx=15, pady=8, wraplength=480).pack(pady=(0, 10))
+        if es_pausa_docente:
+            sub_txt = "El docente a cargo ha colocado temporalmente tu examen en pausa."
+        else:
+            sub_txt = f"Se detectó un imprevisto / salida de video externa ({num_pantallas} pantallas)."
+        tk.Label(cont, text=sub_txt, font=('Segoe UI', 11),
+                 fg=COLORS['text_dark'], bg=COLORS['bg_white'], justify='center').pack(pady=(0, 12))
 
-        msg_instrucciones = (
-            "Para poder continuar con tu examen:\n"
-            "1. Desconecta de inmediato cualquier pantalla externa o cable HDMI / VGA.\n"
-            "2. Comunícate con tu docente para que autorice y reanude tu examen.\n"
-            "3. Cuando el docente lo reanude, el examen continuará automáticamente."
-        )
-        tk.Label(cont, text=msg_instrucciones, font=('Calibri', 11),
+        # Cuadro de progreso y estado de respuestas
+        pag_actual = getattr(self, 'pagina_actual', 1)
+        resp_guardadas_len = len(globals().get('respuestas_guardadas', {}))
+        
+        info_prog_frame = tk.Frame(cont, bg='#f0fdf4', padx=18, pady=12,
+                                   highlightbackground='#86efac', highlightthickness=1)
+        info_prog_frame.pack(fill='x', pady=(0, 14))
+        
+        tk.Label(info_prog_frame, text=f"📍 Te has quedado en la Pregunta #{pag_actual}",
+                 font=('Segoe UI', 11, 'bold'), fg='#15803d', bg='#f0fdf4').pack(anchor='w')
+        tk.Label(info_prog_frame, text=f"Tus {resp_guardadas_len} respuestas guardadas están completamente aseguradas en el sistema.",
+                 font=('Segoe UI', 9.5), fg='#166534', bg='#f0fdf4').pack(anchor='w', pady=(2, 0))
+
+        if es_pausa_docente:
+            msg_instrucciones = (
+                "• Por favor permanece atento en esta pantalla.\n"
+                "• Cuando tu docente reanude la sesión desde su panel de control,\n"
+                "  tu evaluación continuará automáticamente en la Pregunta #" + str(pag_actual) + ".\n"
+                "• No perderás tiempo ni tus respuestas guardadas."
+            )
+        else:
+            msg_instrucciones = (
+                "Para poder continuar con tu examen:\n"
+                "1. Desconecta de inmediato cualquier pantalla externa o cable HDMI / VGA.\n"
+                "2. Comunícate con tu docente para que autorice y reanude tu examen.\n"
+                "3. Cuando el docente lo reanude, el examen continuará automáticamente."
+            )
+
+        tk.Label(cont, text=msg_instrucciones, font=('Segoe UI', 10),
                  fg=COLORS['text_dark'], bg='#fffbeb', padx=20, pady=12, justify='left',
-                 relief='solid', bd=1).pack(pady=(0, 15))
+                 highlightbackground='#fde68a', highlightthickness=1).pack(fill='x', pady=(0, 14))
 
-        lbl_estado_check = tk.Label(cont, text="⏳ Esperando autorización del docente...", font=('Calibri', 11, 'italic'),
+        lbl_estado_check = tk.Label(cont, text="⏳ Esperando que el docente reanude el examen...",
+                                    font=('Segoe UI', 10, 'italic'),
                                     fg='#b45309', bg=COLORS['bg_white'])
-        lbl_estado_check.pack(pady=(0, 15))
+        lbl_estado_check.pack(pady=(0, 14))
 
         frame_btns = tk.Frame(cont, bg=COLORS['bg_white'])
         frame_btns.pack()
@@ -2848,15 +2877,18 @@ class App:
         def verificar_reanudacion():
             if not getattr(self, "pausa_seguridad_activa", False):
                 return
-            hay_m, n_actual = hay_multiples_pantallas()
-            if hay_m:
-                lbl_estado_check.config(
-                    text=f"❌ Aún se detectan {n_actual} pantallas. Desconecta los monitores externos primero.",
-                    fg=COLORS['danger']
-                )
-                return
+            
+            # Si no es pausa del docente y aún hay pantallas múltiples
+            if not es_pausa_docente:
+                hay_m, n_actual = hay_multiples_pantallas()
+                if hay_m:
+                    lbl_estado_check.config(
+                        text=f"❌ Aún se detectan {n_actual} pantallas. Desconecta los monitores externos primero.",
+                        fg=COLORS['danger']
+                    )
+                    return
 
-            lbl_estado_check.config(text="🔄 Consultando autorización del docente...", fg=COLORS['primary'])
+            lbl_estado_check.config(text="🔄 Consultando estado de reanudación con el servidor...", fg=COLORS['primary'])
             
             def consultar_api():
                 try:
@@ -2867,7 +2899,7 @@ class App:
                     if res.get('success'):
                         if res.get('pausado'):
                             lbl_estado_check.config(
-                                text="⏳ El docente aún no ha reanudado tu examen. Por favor solicítale que lo reanude.",
+                                text="⏳ El docente aún no ha reanudado tu examen. Esperando autorización...",
                                 fg='#b45309'
                             )
                         else:
@@ -2876,24 +2908,25 @@ class App:
                                 text="✅ ¡El docente ha reanudado tu examen! Continuando...",
                                 fg=COLORS['success']
                             )
-                            self.root.after(1000, lambda: self.iniciar_intento_examen({'id': ex_id}))
+                            # Continuar el examen sin perder respuestas
+                            self.root.after(800, lambda: self.iniciar_examen({'id': ex_id}, None))
                     else:
-                        lbl_estado_check.config(text=f"Error: {res.get('error', 'Sin respuesta')}", fg=COLORS['danger'])
+                        lbl_estado_check.config(text=f"Aviso: {res.get('error', 'Sin respuesta')}", fg=COLORS['danger'])
                 except Exception as ex_err:
-                    lbl_estado_check.config(text=f"Error de red: {ex_err}", fg=COLORS['danger'])
+                    lbl_estado_check.config(text=f"Aviso de red: {ex_err}", fg=COLORS['danger'])
 
             threading.Thread(target=consultar_api, daemon=True).start()
 
         btn_verificar = tk.Button(
             frame_btns,
-            text="🔄 Comprobar si el docente reanudó",
-            font=('Calibri', 11, 'bold'),
-            bg=COLORS['success'],
+            text="  🔄 Comprobar Reanudación Ahora  ",
+            font=('Segoe UI', 10, 'bold'),
+            bg=COLORS['primary'],
             fg='white',
             bd=0,
             padx=18,
             pady=8,
-            activebackground=COLORS['success_dark'],
+            activebackground=COLORS['primary_dark'],
             activeforeground='white',
             cursor='hand2',
             command=verificar_reanudacion
@@ -2902,26 +2935,26 @@ class App:
 
         btn_salir = tk.Button(
             frame_btns,
-            text="❌ Salir",
-            font=('Calibri', 11, 'bold'),
-            bg='#6b7280',
-            fg='white',
+            text="  🚪 Salir a Mis Exámenes  ",
+            font=('Segoe UI', 10),
+            bg='#f1f5f9',
+            fg=COLORS['text_dark'],
             bd=0,
             padx=18,
             pady=8,
-            activebackground='#4b5563',
-            activeforeground='white',
+            activebackground='#e2e8f0',
+            activeforeground=COLORS['text_dark'],
             cursor='hand2',
-            command=self.salir
+            command=self.mostrar_examenes
         )
         btn_salir.pack(side='left', padx=6)
 
         def auto_check_loop():
             if getattr(self, "pausa_seguridad_activa", False):
                 verificar_reanudacion()
-                self.root.after(4000, auto_check_loop)
+                self.root.after(3000, auto_check_loop)
 
-        self.root.after(4000, auto_check_loop)
+        self.root.after(3000, auto_check_loop)
 
     # ===================================================
     #  SEGURIDAD: FORZAR PRIMER PLANO
@@ -3245,9 +3278,9 @@ class App:
         if not silent and hasattr(self, 'frame_lista') and self.frame_lista:
             for w in self.frame_lista.winfo_children():
                 w.destroy()
-            self.lbl_cargando = tk.Label(self.frame_lista, text="⏳ Cargando exámenes...",
-                                         font=('Calibri', 14), fg=COLORS['secondary'], bg=COLORS['bg_light'])
-            self.lbl_cargando.pack(pady=50)
+            self.lbl_cargando = tk.Label(self.frame_lista, text="⏳ Cargando evaluaciones asignadas...",
+                                         font=('Segoe UI', 13), fg=COLORS['text_muted'], bg=COLORS['bg_light'])
+            self.lbl_cargando.pack(pady=60)
 
         self._cargar_examenes_async()
 
@@ -3259,58 +3292,108 @@ class App:
         frame.configure(bg=COLORS['bg_light'])
         self._vista_examenes_activa = True
 
-        # Header superior estilo Moodle
-        header = tk.Frame(frame, bg=COLORS['bg_white'], height=60)
+        # Header superior institucional de nivel universitario
+        header = tk.Frame(frame, bg=COLORS['bg_white'], height=70)
         header.pack(fill='x')
         header.pack_propagate(False)
 
+        # Franja decorativa institucional en el tope
+        tk.Frame(header, bg=COLORS['primary'], height=3).pack(fill='x', side='top')
+
         header_inner = tk.Frame(header, bg=COLORS['bg_white'])
-        header_inner.pack(fill='both', expand=True, padx=20)
+        header_inner.pack(fill='both', expand=True, padx=25)
 
-        tk.Label(header_inner, text="Sistema de Exámenes", font=('Calibri', 14, 'bold'),
-                 fg=COLORS['primary'], bg=COLORS['bg_white']).pack(side='left', pady=15)
+        # Logo / Marca institucional UG a la izquierda
+        brand_frame = tk.Frame(header_inner, bg=COLORS['bg_white'])
+        brand_frame.pack(side='left', fill='y')
+
+        tk.Label(brand_frame, text="🏛️", font=('Segoe UI', 18), bg=COLORS['bg_white']).pack(side='left', padx=(0, 10))
+        brand_text_frame = tk.Frame(brand_frame, bg=COLORS['bg_white'])
+        brand_text_frame.pack(side='left', fill='y', pady=10)
+
+        tk.Label(brand_text_frame, text="UNIVERSIDAD DE GUAYAQUIL", font=('Segoe UI', 11, 'bold'),
+                 fg=COLORS['primary'], bg=COLORS['bg_white'], anchor='w').pack(anchor='w')
+        tk.Label(brand_text_frame, text="Sistema Seguro de Evaluación Académica", font=('Segoe UI', 8, 'bold'),
+                 fg=COLORS['text_muted'], bg=COLORS['bg_white'], anchor='w').pack(anchor='w')
         
-        # Info usuario a la derecha
+        # Info usuario y botones de control a la derecha
         user_frame = tk.Frame(header_inner, bg=COLORS['bg_white'])
-        user_frame.pack(side='right', pady=15)
+        user_frame.pack(side='right', fill='y', pady=12)
         
-        tk.Label(user_frame, text=f"👤 {usuario_actual['nombres']}", font=('Calibri', 10),
-                 fg=COLORS['secondary'], bg=COLORS['bg_white']).pack(side='left', padx=10)
+        # Pill con nombre y rol del estudiante
+        user_pill = tk.Frame(user_frame, bg='#f1f5f9', padx=12, pady=6,
+                             highlightbackground=COLORS['border'], highlightthickness=1)
+        user_pill.pack(side='left', padx=(0, 12))
 
-        self.btn_refrescar_examenes = tk.Button(user_frame, text="🔄", font=('Calibri', 9, 'bold'), 
-                  bg=COLORS['primary'], fg='white', bd=0, padx=10, pady=4, cursor='hand2',
-                  activebackground=COLORS['primary_dark'], activeforeground='white',
-                  command=self.refrescar_examenes)
+        nom_est = usuario_actual.get('nombres', 'Estudiante')
+        tk.Label(user_pill, text=f"👤 {nom_est}", font=('Segoe UI', 9, 'bold'),
+                 fg=COLORS['text_dark'], bg='#f1f5f9').pack(side='left')
+
+        role_tag = tk.Label(user_pill, text="ESTUDIANTE", font=('Segoe UI', 7, 'bold'),
+                            fg='#0369a1', bg='#e0f2fe', padx=5, pady=1)
+        role_tag.pack(side='left', padx=(8, 0))
+
+        # Botón actualizar datos
+        self.btn_refrescar_examenes = tk.Button(
+            user_frame,
+            text="  🔄 Actualizar  ",
+            font=('Segoe UI', 9, 'bold'), 
+            bg='#f8fafc',
+            fg=COLORS['primary'],
+            bd=1,
+            relief='solid',
+            padx=10,
+            pady=5,
+            cursor='hand2',
+            activebackground=COLORS['primary_light'],
+            activeforeground=COLORS['primary_dark'],
+            command=self.refrescar_examenes
+        )
         self.btn_refrescar_examenes.pack(side='left', padx=(0, 8))
 
-        tk.Button(user_frame, text="🚪 Salir", font=('Calibri', 9, 'bold'), 
-                  bg=COLORS['danger'], fg='white', bd=0, padx=12, pady=4, cursor='hand2',
-                  activebackground='#b91c1c', activeforeground='white',
-                  command=self.mostrar_login).pack(side='left')
+        # Botón cerrar sesión
+        btn_salir_app = tk.Button(
+            user_frame,
+            text="  🚪 Cerrar Sesión  ",
+            font=('Segoe UI', 9, 'bold'), 
+            bg='#fee2e2',
+            fg='#dc2626',
+            bd=0,
+            padx=12,
+            pady=6,
+            cursor='hand2',
+            activebackground='#fecaca',
+            activeforeground='#991b1b',
+            command=self.mostrar_login
+        )
+        btn_salir_app.pack(side='left')
 
-        # Línea separadora
+        # Línea separadora sutil
         tk.Frame(frame, bg=COLORS['border'], height=1).pack(fill='x')
 
-        # Contenido principal
+        # Contenido principal con padding profesional
         content = tk.Frame(frame, bg=COLORS['bg_light'])
-        content.pack(fill='both', expand=True, padx=30, pady=25)
+        content.pack(fill='both', expand=True, padx=35, pady=25)
 
-        # Título de sección estilo Moodle
+        # Banner de sección
         title_frame = tk.Frame(content, bg=COLORS['bg_light'])
         title_frame.pack(fill='x', pady=(0, 20))
 
-        tk.Label(title_frame, text=" ", font=('Calibri', 24), 
-                 bg=COLORS['bg_light'], fg=COLORS['primary']).pack(side='left')
-        tk.Label(title_frame, text="Mis Exámenes", font=('Calibri', 20, 'bold'),
-                 fg=COLORS['text_dark'], bg=COLORS['bg_light']).pack(side='left', padx=10)
+        h_title = tk.Frame(title_frame, bg=COLORS['bg_light'])
+        h_title.pack(fill='x')
+        tk.Label(h_title, text="📋 Mis Evaluaciones Académicas", font=('Segoe UI', 18, 'bold'),
+                 fg=COLORS['text_dark'], bg=COLORS['bg_light']).pack(side='left')
+
+        tk.Label(title_frame, text="Consulta tus evaluaciones programadas, continúa exámenes en curso o revisa tus notas registradas.",
+                 font=('Segoe UI', 9.5), fg=COLORS['text_muted'], bg=COLORS['bg_light']).pack(anchor='w', pady=(4, 0))
 
         # Frame scrollable para la lista
         self.frame_lista = tk.Frame(content, bg=COLORS['bg_light'])
         self.frame_lista.pack(fill='both', expand=True)
 
-        self.lbl_cargando = tk.Label(self.frame_lista, text="⏳ Cargando exámenes...",
-                                     font=('Calibri', 14), fg=COLORS['secondary'], bg=COLORS['bg_light'])
-        self.lbl_cargando.pack(pady=50)
+        self.lbl_cargando = tk.Label(self.frame_lista, text="⏳ Cargando evaluaciones asignadas...",
+                                     font=('Segoe UI', 13), fg=COLORS['text_muted'], bg=COLORS['bg_light'])
+        self.lbl_cargando.pack(pady=60)
 
         self._cargando_examenes = True
         self.btn_refrescar_examenes.config(state='disabled')
@@ -3333,19 +3416,20 @@ class App:
                 w.destroy()
 
         if not result.get('success'):
-            tk.Label(self.frame_lista, text=f"❌ {result.get('error', 'Error al cargar exámenes')}",
-                     font=('Calibri', 12), fg=COLORS['danger'], bg=COLORS['bg_light']).pack(pady=50)
+            tk.Label(self.frame_lista, text=f"❌ {result.get('error', 'Error al cargar evaluaciones')}",
+                     font=('Segoe UI', 12), fg=COLORS['danger'], bg=COLORS['bg_light']).pack(pady=50)
             return
 
         examenes = result.get('examenes', [])
         if not examenes:
-            # Mensaje vacío estilo Moodle
-            empty_frame = tk.Frame(self.frame_lista, bg=COLORS['bg_white'], padx=40, pady=40,
+            empty_frame = tk.Frame(self.frame_lista, bg=COLORS['bg_white'], padx=45, pady=45,
                                   highlightbackground=COLORS['border'], highlightthickness=1)
-            empty_frame.pack(pady=30)
-            tk.Label(empty_frame, text="📭", font=('Calibri', 48), bg=COLORS['bg_white']).pack()
-            tk.Label(empty_frame, text="No hay exámenes disponibles", font=('Calibri', 14),
-                     fg=COLORS['secondary'], bg=COLORS['bg_white']).pack(pady=10)
+            empty_frame.pack(pady=40)
+            tk.Label(empty_frame, text="📭", font=('Segoe UI', 44), bg=COLORS['bg_white']).pack()
+            tk.Label(empty_frame, text="No tienes evaluaciones programadas por el momento", font=('Segoe UI', 13, 'bold'),
+                     fg=COLORS['text_dark'], bg=COLORS['bg_white']).pack(pady=(10, 4))
+            tk.Label(empty_frame, text="Tus exámenes aparecerán aquí cuando tu docente los active en el sistema.", font=('Segoe UI', 9.5),
+                     fg=COLORS['text_muted'], bg=COLORS['bg_white']).pack()
             return
 
         cards_grid = tk.Frame(self.frame_lista, bg=COLORS['bg_light'])
@@ -3356,95 +3440,104 @@ class App:
         if ancho <= 1:
             ancho = self.root.winfo_width()
 
-        card_min = 340
-        columnas = max(1, min(3, max(1, ancho // card_min)))
-        for c in range(columnas):
-            cards_grid.grid_columnconfigure(c, weight=1, uniform="examen_card")
+        num_ex = len(examenes)
+        if num_ex == 1:
+            columnas = 1
+            card_max_w = min(680, max(460, ancho - 80))
+            cards_grid.grid_columnconfigure(0, weight=1)
+            for ex in examenes:
+                card = self.crear_card_examen(cards_grid, ex)
+                card.pack(anchor='center', fill='x', padx=10, pady=10)
+        else:
+            columnas = max(1, min(3, max(1, ancho // 440)))
+            for c in range(columnas):
+                cards_grid.grid_columnconfigure(c, weight=1, uniform="examen_card")
 
-        for i, ex in enumerate(examenes):
-            fila = i // columnas
-            col = i % columnas
-            card = self.crear_card_examen(cards_grid, ex)
-            card.grid(row=fila, column=col, padx=8, pady=8, sticky="nsew")
-
-    def _programar_auto_refresh_examenes(self):
-        if not self._vista_examenes_activa:
-            return
-        if self._auto_refresh_examenes_id:
-            try:
-                self.root.after_cancel(self._auto_refresh_examenes_id)
-            except Exception:
-                pass
-        self._auto_refresh_examenes_id = self.root.after(15000, self._auto_refresh_examenes)
-
-    def _auto_refresh_examenes(self):
-        if not self._vista_examenes_activa:
-            return
-        self.refrescar_examenes(silent=True)
-        self._programar_auto_refresh_examenes()
-
-    def _detener_auto_refresh_examenes(self):
-        self._vista_examenes_activa = False
-        if self._auto_refresh_examenes_id:
-            try:
-                self.root.after_cancel(self._auto_refresh_examenes_id)
-            except Exception:
-                pass
-            self._auto_refresh_examenes_id = None
+            for i, ex in enumerate(examenes):
+                fila = i // columnas
+                col = i % columnas
+                card = self.crear_card_examen(cards_grid, ex)
+                card.grid(row=fila, column=col, padx=12, pady=12, sticky="nsew")
 
     def crear_card_examen(self, parent, ex):
-        """Crea una card de examen con diseño moderno y profesional."""
+        """Crea una card de examen con diseño moderno y profesional de nivel universitario."""
         nota = ex.get('nota_registrada')
-        ya_rendido = nota is not None and str(nota) != '-1' and str(nota) != '' and nota != -1
-        en_progreso = nota is not None and str(nota) == '-1'
-        es_activo = ex['estado'] == 'activo'
+        
+        # Evaluar flags con seguridad numérica y de API
+        en_progreso = ex.get('en_progreso')
+        if en_progreso is None:
+            try:
+                en_progreso = (nota is not None and float(nota) == -1.0)
+            except (ValueError, TypeError):
+                en_progreso = False
+
+        ya_rendido = ex.get('ya_rendido')
+        if ya_rendido is None:
+            try:
+                ya_rendido = (nota is not None and float(nota) >= 0.0)
+            except (ValueError, TypeError):
+                ya_rendido = False
+
+        esta_pausado = bool(ex.get('esta_pausado', False))
+        motivo_pausa = ex.get('motivo_pausa') or ex.get('seguridad_motivo') or 'Examen pausado por el docente'
+        pregunta_actual = int(ex.get('pregunta_actual') or 1)
+        total_preguntas = int(ex.get('total_preguntas') or ex.get('cant_preguntas_mostrar') or 0)
+        respondidas_count = int(ex.get('respondidas_count') or 0)
+
+        es_activo = ex.get('estado') == 'activo'
         es_secuencial = bool(int(ex.get('preguntas_secuenciales', 0)))
 
-        # Determinar colores según estado
-        if ya_rendido:
+        # Determinar colores y badge según estado real
+        if en_progreso:
+            if esta_pausado:
+                borde = COLORS['warning']
+                header_bg = '#fef3c7'
+                estado_txt = "EN PAUSA"
+                estado_bg = COLORS['warning']
+                estado_icon = "⏸"
+            else:
+                borde = COLORS['info']
+                header_bg = '#e0f2fe'
+                estado_txt = "EN CURSO / REANUDADO"
+                estado_bg = COLORS['info']
+                estado_icon = "⏳"
+        elif ya_rendido:
             borde = COLORS['success']
-            header_bg = COLORS['card_header_completado']
+            header_bg = '#ecfdf5'
             estado_txt = "COMPLETADO"
             estado_bg = COLORS['success']
             estado_icon = "✓"
         elif es_activo:
-            borde = COLORS['badge_activo_bg']
-            header_bg = COLORS['card_header_activo']
-            estado_txt = "ACTIVO"
-            estado_bg = COLORS['badge_activo_bg']
+            borde = COLORS['success']
+            header_bg = '#ecfdf5'
+            estado_txt = "DISPONIBLE"
+            estado_bg = COLORS['success']
             estado_icon = "●"
-        elif ex['estado'] == 'cerrado':
-            borde = COLORS['badge_cerrado_bg']
-            header_bg = COLORS['card_header_cerrado']
-            estado_txt = "CERRADO"
-            estado_bg = COLORS['badge_cerrado_bg']
+        elif ex.get('estado') == 'cerrado':
+            borde = '#94a3b8'
+            header_bg = '#f1f5f9'
+            estado_txt = "FINALIZADO"
+            estado_bg = '#64748b'
             estado_icon = "✕"
         else:
-            borde = COLORS['badge_pendiente_bg']
-            header_bg = COLORS['card_header_pendiente']
-            estado_txt = "PENDIENTE"
-            estado_bg = COLORS['badge_pendiente_bg']
+            borde = COLORS['warning']
+            header_bg = '#fffbeb'
+            estado_txt = "PROGRAMADO"
+            estado_bg = COLORS['warning']
             estado_icon = "◔"
 
-        # ========= CARD PRINCIPAL CON SOMBRA =========
-        # Frame exterior para efecto de sombra
-        shadow_frame = tk.Frame(parent, bg=COLORS['card_shadow'])
+        # ========= CARD PRINCIPAL CON SOMBRA Y ELEVACIÓN =========
+        shadow_frame = tk.Frame(parent, bg='#e2e8f0', padx=1, pady=1)
 
-        # Card principal
-        card = tk.Frame(shadow_frame, bg=COLORS['card_bg'])
-        card.pack(padx=(0, 3), pady=(0, 3))
+        card = tk.Frame(shadow_frame, bg=COLORS['card_bg'], padx=0, pady=0)
+        card.pack(fill='both', expand=True)
 
-        # ========= HEADER DE LA CARD =========
-        header = tk.Frame(card, bg=header_bg, height=8)
-        header.pack(fill='x')
-        header.pack_propagate(False)
-
-        # Barra de color superior (indicador visual del estado)
-        color_bar = tk.Frame(card, bg=borde, height=4)
+        # Barra decorativa de color superior
+        color_bar = tk.Frame(card, bg=borde, height=5)
         color_bar.pack(fill='x')
 
         # ========= CONTENIDO PRINCIPAL =========
-        content = tk.Frame(card, bg=COLORS['card_bg'], padx=20, pady=16)
+        content = tk.Frame(card, bg=COLORS['card_bg'], padx=22, pady=18)
         content.pack(fill='both', expand=True)
 
         # ========= FILA SUPERIOR: TÍTULO + BADGES =========
@@ -3454,214 +3547,251 @@ class App:
         # Título del examen
         title_label = tk.Label(
             top_row,
-            text=ex['titulo'],
-            font=('Segoe UI', 13, 'bold'),
+            text=ex.get('titulo', 'Evaluación'),
+            font=('Segoe UI', 14, 'bold'),
             fg=COLORS['text_dark'],
             bg=COLORS['card_bg'],
-            wraplength=250,
+            wraplength=340,
             justify='left'
         )
         title_label.pack(side='left', anchor='nw')
 
-        # Frame para badges (alineados a la derecha)
+        # Badges alineados a la derecha
         badges_frame = tk.Frame(top_row, bg=COLORS['card_bg'])
         badges_frame.pack(side='right', anchor='ne')
 
-        # Badge de navegación (Secuencial/Libre)
+        # Badge de navegación
         nav_bg = COLORS['badge_secuencial_bg'] if es_secuencial else COLORS['badge_libre_bg']
-        nav_icon = "⟳" if es_secuencial else "⇄"
-        nav_txt = "Secuencial" if es_secuencial else "Libre"
+        nav_txt = "🔒 Secuencial" if es_secuencial else "🔓 Navegación Libre"
 
-        badge_nav_frame = tk.Frame(badges_frame, bg=nav_bg)
+        badge_nav_frame = tk.Frame(badges_frame, bg=nav_bg, padx=8, pady=3)
         badge_nav_frame.pack(side='top', anchor='e', pady=(0, 4))
         tk.Label(
             badge_nav_frame,
-            text=f" {nav_icon} {nav_txt} ",
+            text=nav_txt,
             font=('Segoe UI', 8, 'bold'),
             fg='white',
-            bg=nav_bg,
-            padx=6,
-            pady=2
+            bg=nav_bg
         ).pack()
 
         # Badge de estado
-        badge_estado_frame = tk.Frame(badges_frame, bg=estado_bg)
+        badge_estado_frame = tk.Frame(badges_frame, bg=estado_bg, padx=8, pady=3)
         badge_estado_frame.pack(side='top', anchor='e')
         tk.Label(
             badge_estado_frame,
-            text=f" {estado_icon} {estado_txt} ",
+            text=f"{estado_icon} {estado_txt}",
             font=('Segoe UI', 8, 'bold'),
             fg='white',
-            bg=estado_bg,
-            padx=6,
-            pady=2
+            bg=estado_bg
         ).pack()
 
         # ========= LÍNEA DIVISORIA =========
-        tk.Frame(content, bg=COLORS['divider'], height=1).pack(fill='x', pady=(0, 12))
+        tk.Frame(content, bg=COLORS['divider'], height=1).pack(fill='x', pady=(0, 14))
 
-        # ========= INFORMACIÓN DEL EXAMEN =========
-        info_frame = tk.Frame(content, bg=COLORS['card_bg'])
-        info_frame.pack(fill='x', pady=(0, 8))
+        # ========= DETALLES METADATA DEL EXAMEN =========
+        meta_grid = tk.Frame(content, bg=COLORS['card_bg'])
+        meta_grid.pack(fill='x', pady=(0, 10))
+        meta_grid.grid_columnconfigure(0, weight=1)
+        meta_grid.grid_columnconfigure(1, weight=1)
 
-        # Cabecera de detalles
-        tk.Label(info_frame, text="Detalles del examen", font=('Segoe UI', 11, 'bold'),
-                 fg=COLORS['text_dark'], bg=COLORS['card_bg']).pack(anchor='w', pady=(0, 6))
-
-        detalle_grid = tk.Frame(info_frame, bg=COLORS['card_bg'])
-        detalle_grid.pack(fill='x')
-        detalle_grid.grid_columnconfigure(2, weight=1)
-
-        def add_row(icon, titulo, valor, fila):
-            tk.Label(detalle_grid, text=icon, font=('Segoe UI', 10), fg=COLORS['info_icon'],
-                     bg=COLORS['card_bg']).grid(row=fila, column=0, padx=(0, 6), pady=3, sticky='w')
-            tk.Label(detalle_grid, text=titulo, font=('Segoe UI', 9, 'bold'),
-                     fg=COLORS['text_dark'], bg=COLORS['card_bg']).grid(row=fila, column=1, padx=(0, 8), pady=3, sticky='w')
-            tk.Label(detalle_grid, text=valor, font=('Segoe UI', 10),
-                     fg=COLORS['secondary'], bg=COLORS['card_bg']).grid(row=fila, column=2, pady=3, sticky='w')
-
-        materia = ex.get('materia', '')
-        paralelo = ex.get('paralelo') or ex.get('paralelo_codigo') or ex.get('paralelo_nombre') or ex.get('codigo_paralelo') or ex.get('curso_paralelo')
+        materia = ex.get('materia', '') or "Asignatura general"
+        paralelo = ex.get('paralelo') or ex.get('paralelo_codigo') or ex.get('paralelo_nombre') or "Único"
         duracion_min = ex.get('duracion_minutos', 60)
         duracion_txt = self._formatear_duracion(duracion_min)
-        tipo_nav_txt = "Navegación secuencial" if es_secuencial else "Navegación libre"
+        total_p_txt = f"{total_preguntas} preguntas" if total_preguntas > 0 else "Preguntas asignadas"
 
-        fila_idx = 0
-        if materia:
-            add_row("📘", "Asignatura:", materia, fila_idx); fila_idx += 1
-        if paralelo:
-            add_row("🏷️", "Paralelo:", paralelo, fila_idx); fila_idx += 1
-        add_row("⏱️", "Duración:", duracion_txt, fila_idx); fila_idx += 1
-        add_row("🧭", "Modo:", tipo_nav_txt, fila_idx)
+        # Item 1: Materia
+        f_mat = tk.Frame(meta_grid, bg=COLORS['card_bg'])
+        f_mat.grid(row=0, column=0, sticky='w', pady=3)
+        tk.Label(f_mat, text="📘", font=('Segoe UI', 10), bg=COLORS['card_bg']).pack(side='left', padx=(0, 6))
+        tk.Label(f_mat, text="Asignatura:", font=('Segoe UI', 9, 'bold'), fg=COLORS['text_muted'], bg=COLORS['card_bg']).pack(side='left', padx=(0, 4))
+        tk.Label(f_mat, text=materia, font=('Segoe UI', 9.5, 'bold'), fg=COLORS['text_dark'], bg=COLORS['card_bg']).pack(side='left')
 
-        # ========= DETALLES EXTRA PARA EXÁMENES ACTIVOS =========
-        if es_activo and not ya_rendido:
-            tk.Frame(content, bg=COLORS['divider'], height=1).pack(fill='x', pady=(8, 10))
+        # Item 2: Paralelo
+        f_par = tk.Frame(meta_grid, bg=COLORS['card_bg'])
+        f_par.grid(row=0, column=1, sticky='w', pady=3)
+        tk.Label(f_par, text="🏷️", font=('Segoe UI', 10), bg=COLORS['card_bg']).pack(side='left', padx=(0, 6))
+        tk.Label(f_par, text="Paralelo:", font=('Segoe UI', 9, 'bold'), fg=COLORS['text_muted'], bg=COLORS['card_bg']).pack(side='left', padx=(0, 4))
+        tk.Label(f_par, text=paralelo, font=('Segoe UI', 9.5), fg=COLORS['text_dark'], bg=COLORS['card_bg']).pack(side='left')
 
-            details_frame = tk.Frame(content, bg='#f8fafc', padx=12, pady=10)
-            details_frame.pack(fill='x')
+        # Item 3: Duración
+        f_dur = tk.Frame(meta_grid, bg=COLORS['card_bg'])
+        f_dur.grid(row=1, column=0, sticky='w', pady=3)
+        tk.Label(f_dur, text="⏱️", font=('Segoe UI', 10), bg=COLORS['card_bg']).pack(side='left', padx=(0, 6))
+        tk.Label(f_dur, text="Duración:", font=('Segoe UI', 9, 'bold'), fg=COLORS['text_muted'], bg=COLORS['card_bg']).pack(side='left', padx=(0, 4))
+        tk.Label(f_dur, text=duracion_txt, font=('Segoe UI', 9.5), fg=COLORS['text_dark'], bg=COLORS['card_bg']).pack(side='left')
 
-            curso = ex.get('curso') or ex.get('materia') or "No definido"
-            fecha_inicio_raw = ex.get('fecha_inicio') or ex.get('fecha_inicio_real') or ex.get('fecha_inicio_examen')
-            fecha_fin_raw = ex.get('fecha_fin') or ex.get('fecha_fin_real') or ex.get('fecha_fin_examen')
+        # Item 4: Cantidad Preguntas
+        f_cnt = tk.Frame(meta_grid, bg=COLORS['card_bg'])
+        f_cnt.grid(row=1, column=1, sticky='w', pady=3)
+        tk.Label(f_cnt, text="📝", font=('Segoe UI', 10), bg=COLORS['card_bg']).pack(side='left', padx=(0, 6))
+        tk.Label(f_cnt, text="Evaluación:", font=('Segoe UI', 9, 'bold'), fg=COLORS['text_muted'], bg=COLORS['card_bg']).pack(side='left', padx=(0, 4))
+        tk.Label(f_cnt, text=total_p_txt, font=('Segoe UI', 9.5), fg=COLORS['text_dark'], bg=COLORS['card_bg']).pack(side='left')
 
-            # Grid de detalles
-            detail_row1 = tk.Frame(details_frame, bg='#f8fafc')
-            detail_row1.pack(fill='x', pady=1)
-            tk.Label(detail_row1, text="Curso:", font=('Segoe UI', 9, 'bold'), fg=COLORS['secondary'], bg='#f8fafc', width=10, anchor='w').pack(side='left')
-            tk.Label(detail_row1, text=curso, font=('Segoe UI', 9), fg=COLORS['text_dark'], bg='#f8fafc').pack(side='left')
-
-            detail_row2 = tk.Frame(details_frame, bg='#f8fafc')
-            detail_row2.pack(fill='x', pady=1)
-            tk.Label(detail_row2, text="Inicio:", font=('Segoe UI', 9, 'bold'), fg=COLORS['secondary'], bg='#f8fafc', width=10, anchor='w').pack(side='left')
-            tk.Label(detail_row2, text=self._formatear_fecha_examen(fecha_inicio_raw), font=('Segoe UI', 9), fg=COLORS['text_dark'], bg='#f8fafc').pack(side='left')
-
-            detail_row3 = tk.Frame(details_frame, bg='#f8fafc')
-            detail_row3.pack(fill='x', pady=1)
-            tk.Label(detail_row3, text="Fin:", font=('Segoe UI', 9, 'bold'), fg=COLORS['secondary'], bg='#f8fafc', width=10, anchor='w').pack(side='left')
-            tk.Label(detail_row3, text=self._formatear_fecha_examen(fecha_fin_raw), font=('Segoe UI', 9), fg=COLORS['text_dark'], bg='#f8fafc').pack(side='left')
-
-            detail_row4 = tk.Frame(details_frame, bg='#f8fafc')
-            detail_row4.pack(fill='x', pady=1)
-            tk.Label(detail_row4, text="Duración:", font=('Segoe UI', 9, 'bold'), fg=COLORS['secondary'], bg='#f8fafc', width=10, anchor='w').pack(side='left')
-            tk.Label(detail_row4, text=duracion_txt, font=('Segoe UI', 9), fg=COLORS['text_dark'], bg='#f8fafc').pack(side='left')
-
-        # ========= ÁREA DE ACCIONES =========
+        # ========= ÁREA DE ACCIONES Y CONTINUACIÓN =========
         tk.Frame(content, bg=COLORS['divider'], height=1).pack(fill='x', pady=(12, 0))
-
-        action_frame = tk.Frame(content, bg=COLORS['card_bg'], pady=12)
+        action_frame = tk.Frame(content, bg=COLORS['card_bg'], pady=14)
         action_frame.pack(fill='x')
 
-        if ya_rendido:
+        if en_progreso:
+            if esta_pausado:
+                # Banner de examen pausado
+                pause_box = tk.Frame(action_frame, bg='#fffbeb', padx=14, pady=12,
+                                     highlightbackground='#fde68a', highlightthickness=1)
+                pause_box.pack(fill='x', pady=(0, 10))
+
+                h_p = tk.Frame(pause_box, bg='#fffbeb')
+                h_p.pack(fill='x')
+                tk.Label(h_p, text="⏸️", font=('Segoe UI', 12), bg='#fffbeb').pack(side='left')
+                tk.Label(h_p, text="Examen Pausado por el Docente / Seguridad", font=('Segoe UI', 10, 'bold'),
+                         fg='#b45309', bg='#fffbeb').pack(side='left', padx=(6, 0))
+
+                msg_p = f"Detenido en la Pregunta #{pregunta_actual}"
+                if total_preguntas > 0:
+                    msg_p += f" de {total_preguntas}"
+                msg_p += f" ({respondidas_count} respondidas guardadas).\nMotivo: {motivo_pausa}\nTu docente debe reanudar la evaluación para poder continuar."
+                tk.Label(pause_box, text=msg_p, font=('Segoe UI', 9), fg='#92400e', bg='#fffbeb', justify='left').pack(anchor='w', pady=(4, 0))
+
+                btn_chk = tk.Button(
+                    action_frame,
+                    text="  🔄  Comprobar si el Docente Reanudó  ",
+                    font=('Segoe UI', 10, 'bold'),
+                    bg=COLORS['warning'],
+                    fg='white',
+                    bd=0,
+                    padx=18,
+                    pady=9,
+                    cursor='hand2',
+                    activebackground='#b45309',
+                    activeforeground='white',
+                    command=self.refrescar_examenes
+                )
+                btn_chk.pack(side='right')
+
+            else:
+                # Banner de continuar examen en progreso / reanudado
+                prog_box = tk.Frame(action_frame, bg='#f0fdf4', padx=14, pady=12,
+                                    highlightbackground='#86efac', highlightthickness=1)
+                prog_box.pack(fill='x', pady=(0, 10))
+
+                h_pr = tk.Frame(prog_box, bg='#f0fdf4')
+                h_pr.pack(fill='x')
+                tk.Label(h_pr, text="📍", font=('Segoe UI', 12), bg='#f0fdf4').pack(side='left')
+                tk.Label(h_pr, text="Progreso Guardado — Examen Reanudado / En Curso", font=('Segoe UI', 10, 'bold'),
+                         fg='#15803d', bg='#f0fdf4').pack(side='left', padx=(6, 0))
+
+                msg_c = f"Te has quedado en la Pregunta #{pregunta_actual}"
+                if total_preguntas > 0:
+                    msg_c += f" de {total_preguntas}"
+                msg_c += f" ({respondidas_count} respuestas registradas).\nTodas tus respuestas anteriores se encuentran intactas en la plataforma."
+                tk.Label(prog_box, text=msg_c, font=('Segoe UI', 9), fg='#166534', bg='#f0fdf4', justify='left').pack(anchor='w', pady=(4, 0))
+
+                btn_cont = tk.Button(
+                    action_frame,
+                    text=f"  ▶  Continuar Examen (Pregunta #{pregunta_actual})  ",
+                    font=('Segoe UI', 11, 'bold'),
+                    bg=COLORS['success'],
+                    fg='white',
+                    bd=0,
+                    padx=24,
+                    pady=10,
+                    cursor='hand2',
+                    activebackground='#047857',
+                    activeforeground='white'
+                )
+                btn_cont.config(command=lambda e=ex, b=btn_cont: self.iniciar_examen(e, b))
+                btn_cont.pack(side='right')
+
+        elif ya_rendido:
+            # Examen completado y entregado
             mostrar_nota = normalizar_bool(ex.get('mostrar_nota'))
             if mostrar_nota:
-                n = float(nota)
+                try:
+                    n = float(nota)
+                except:
+                    n = 0.0
                 nota_bg = '#ecfdf5' if n >= 7 else '#fef2f2'
                 nota_border = '#86efac' if n >= 7 else '#fca5a5'
                 nota_fg = COLORS['success'] if n >= 7 else COLORS['danger']
                 nota_icon = "📈" if n >= 7 else "📊"
 
-                nota_wrapper = tk.Frame(action_frame, bg=COLORS['card_bg'])
-                nota_wrapper.pack(fill='x')
-
-                nota_container = tk.Frame(
-                    nota_wrapper,
-                    bg=nota_bg,
-                    padx=16,
-                    pady=12,
-                    highlightbackground=nota_border,
-                    highlightthickness=1
-                )
+                nota_container = tk.Frame(action_frame, bg=nota_bg, padx=16, pady=10,
+                                          highlightbackground=nota_border, highlightthickness=1)
                 nota_container.pack(fill='x')
-
-                header = tk.Frame(nota_container, bg=nota_bg)
-                header.pack(fill='x')
-                tk.Label(header, text=nota_icon, font=('Segoe UI', 12), fg=nota_fg, bg=nota_bg).pack(side='left')
-                tk.Label(header, text="Nota final", font=('Segoe UI', 10, 'bold'), fg=nota_fg, bg=nota_bg).pack(side='left', padx=(6, 0))
-
-                tk.Label(nota_container, text=f"{n:.2f} / 10", font=('Segoe UI', 18, 'bold'),
-                         fg=nota_fg, bg=nota_bg).pack(anchor='w', pady=(6, 2))
-                tk.Label(nota_container, text="Sobre 10 puntos", font=('Segoe UI', 9),
-                         fg=COLORS['secondary'], bg=nota_bg).pack(anchor='w')
+                h_n = tk.Frame(nota_container, bg=nota_bg)
+                h_n.pack(fill='x')
+                tk.Label(h_n, text=nota_icon, font=('Segoe UI', 12), fg=nota_fg, bg=nota_bg).pack(side='left')
+                tk.Label(h_n, text="Nota final registrada", font=('Segoe UI', 10, 'bold'), fg=nota_fg, bg=nota_bg).pack(side='left', padx=(6, 0))
+                tk.Label(nota_container, text=f"{n:.2f} / 10", font=('Segoe UI', 18, 'bold'), fg=nota_fg, bg=nota_bg).pack(anchor='w', pady=(4, 2))
+                tk.Label(nota_container, text="Calificación sobre 10.00 puntos", font=('Segoe UI', 9), fg=COLORS['text_muted'], bg=nota_bg).pack(anchor='w')
             else:
-                completado_frame = tk.Frame(action_frame, bg='#ecfdf5', padx=16, pady=10)
+                completado_frame = tk.Frame(action_frame, bg='#ecfdf5', padx=16, pady=12,
+                                            highlightbackground='#a7f3d0', highlightthickness=1)
                 completado_frame.pack(fill='x')
-
-                completado_inner = tk.Frame(completado_frame, bg='#ecfdf5')
-                completado_inner.pack()
-
-                tk.Label(completado_inner, text="✅", font=('Segoe UI', 12), bg='#ecfdf5').pack(side='left')
-                tk.Label(completado_inner, text="Examen completado", font=('Segoe UI', 11, 'bold'), fg=COLORS['success'], bg='#ecfdf5').pack(side='left', padx=(8, 0))
+                c_inner = tk.Frame(completado_frame, bg='#ecfdf5')
+                c_inner.pack()
+                tk.Label(c_inner, text="✅", font=('Segoe UI', 12), bg='#ecfdf5').pack(side='left')
+                tk.Label(c_inner, text="Examen completado y entregado", font=('Segoe UI', 11, 'bold'), fg=COLORS['success'], bg='#ecfdf5').pack(side='left', padx=(8, 0))
+                tk.Label(completado_frame, text="Tus respuestas han sido enviadas satisfactoriamente al docente.", font=('Segoe UI', 9), fg=COLORS['text_muted'], bg='#ecfdf5').pack(pady=(4, 0))
 
         elif es_activo:
-            if en_progreso:
-                btn_text = "Continuar intento"
-                btn_icon = "▶"
-                btn_bg = COLORS['warning']
-                btn_hover = '#b45309'
-            else:
-                btn_text = "Iniciar intento"
-                btn_icon = "🚀"
-                btn_bg = COLORS['badge_activo_bg']
-                btn_hover = '#047857'
-
-            btn = tk.Button(
+            btn_start = tk.Button(
                 action_frame,
-                text=f"  {btn_icon}  {btn_text}  ",
+                text="  🚀  Iniciar Examen  ",
                 font=('Segoe UI', 11, 'bold'),
-                bg=btn_bg,
+                bg=COLORS['primary'],
                 fg='white',
                 bd=0,
-                padx=24,
+                padx=26,
                 pady=10,
                 cursor='hand2',
-                activebackground=btn_hover,
+                activebackground=COLORS['primary_dark'],
                 activeforeground='white'
             )
-            btn.config(command=lambda e=ex, b=btn: self.iniciar_examen(e, b))
-            btn.pack(side='right')
+            btn_start.config(command=lambda e=ex, b=btn_start: self.iniciar_examen(e, b))
+            btn_start.pack(side='right')
 
-        elif ex['estado'] == 'cerrado':
-            cerrado_frame = tk.Frame(action_frame, bg='#fef2f2', padx=16, pady=8)
+        elif ex.get('estado') == 'cerrado':
+            cerrado_frame = tk.Frame(action_frame, bg='#f8fafc', padx=16, pady=10,
+                                     highlightbackground='#e2e8f0', highlightthickness=1)
             cerrado_frame.pack(fill='x')
-            tk.Label(cerrado_frame, text="🔒 Este examen ya no está disponible", font=('Segoe UI', 10), fg=COLORS['badge_cerrado_bg'], bg='#fef2f2').pack()
+            tk.Label(cerrado_frame, text="🔒 Este examen cerró su periodo de disponibilidad", font=('Segoe UI', 9.5), fg=COLORS['text_muted'], bg='#f8fafc').pack()
 
         return shadow_frame
 
     # ===============================================
     #  INICIAR EXAMEN
     # ===============================================
-    def iniciar_examen(self, examen, btn):
-        if not self.mostrar_confirmar_si_no("Confirmar", 
-            "¿Iniciar el examen?\n\n"
-            "RECUERDE: Si conecta otro dispositivo de salida durante el examen,\n"
-            "este se finalizará y se calificará con lo que haya respondido."):
+    def iniciar_examen(self, examen, btn=None):
+        nota = examen.get('nota_registrada')
+        en_progreso = examen.get('en_progreso')
+        if en_progreso is None:
+            try:
+                en_progreso = (nota is not None and float(nota) == -1.0)
+            except (ValueError, TypeError):
+                en_progreso = False
+        
+        pregunta_act = int(examen.get('pregunta_actual') or 1)
+
+        if en_progreso:
+            msg_conf = (
+                f"¿Continuar con tu examen?\n\n"
+                f"Continuarás desde la Pregunta #{pregunta_act}.\n"
+                f"Todas tus respuestas previas se encuentran intactas y guardadas."
+            )
+        else:
+            msg_conf = (
+                "¿Iniciar el examen?\n\n"
+                "RECUERDE: Si conecta otro dispositivo de salida durante el examen,\n"
+                "este se pausará por seguridad y deberá ser reanudado por el docente."
+            )
+
+        if not self.mostrar_confirmar_si_no("Confirmar Evaluación", msg_conf):
             return
 
         # Seguridad: si hay control remoto activo, intentamos cerrarlo sin admin.
-        # Si persiste (típico cuando corre como servicio/SYSTEM), bloqueamos el inicio.
         try:
-            if btn and btn.winfo_exists():
+            if btn and hasattr(btn, 'config') and btn.winfo_exists():
                 btn.config(state='disabled', text='Verificando seguridad...')
         except Exception:
             pass
@@ -3677,7 +3807,7 @@ class App:
             return
 
         try:
-            if btn and btn.winfo_exists():
+            if btn and hasattr(btn, 'config') and btn.winfo_exists():
                 btn.config(state='disabled', text='Cargando...')
         except Exception:
             pass
@@ -3694,7 +3824,7 @@ class App:
         y = self.root.winfo_y() + (self.root.winfo_height() // 2) - 55
         self.loading.geometry(f"+{x}+{y}")
 
-        tk.Label(self.loading, text="⏳ Preparando examen...", font=('Calibri', 12), 
+        tk.Label(self.loading, text="⏳ Preparando examen...", font=('Segoe UI', 11), 
                  bg=COLORS['bg_white']).pack(pady=(25, 10))
         progress = ttk.Progressbar(self.loading, mode='indeterminate', length=220)
         progress.pack()
@@ -3714,7 +3844,14 @@ class App:
 
                 intento = res1['intento']
                 puntaje = intento.get('puntaje_total')
-                if puntaje is not None and str(puntaje) != '-1' and puntaje != -1:
+                ya_completado = False
+                if puntaje is not None and str(puntaje).strip() != '':
+                    try:
+                        ya_completado = (float(puntaje) >= 0.0)
+                    except (ValueError, TypeError):
+                        ya_completado = False
+
+                if ya_completado:
                     return {'error': 'Ya completaste este examen'}
 
                 res2 = selenium_mgr.api_call('examen_detalle', {
@@ -3747,7 +3884,8 @@ class App:
             except:
                 pass
 
-            btn.config(state='normal', text='▶️ Iniciar intento')
+            if btn and hasattr(btn, 'config') and btn.winfo_exists():
+                btn.config(state='normal')
 
             if data.get('pausado'):
                 ex_id = examen['id']
@@ -3766,6 +3904,7 @@ class App:
 
             try:
                 intento = data['intento']
+                self._pregunta_reanudar = int(intento.get('pregunta_actual') or 0)
                 examen_actual = data['examen']
                 preguntas_cargadas = data['preguntas']
 
@@ -4474,7 +4613,16 @@ class App:
             frame.configure(bg=COLORS['bg_light'])
 
             total = len(orden_preguntas_ids)
-            if modo_secuencial:
+            p_guardada = 0
+            try:
+                if hasattr(self, '_pregunta_reanudar') and self._pregunta_reanudar:
+                    p_guardada = int(self._pregunta_reanudar)
+            except Exception:
+                p_guardada = 0
+
+            if p_guardada > 0:
+                self.pagina_actual = min(p_guardada, max(1, total))
+            elif modo_secuencial:
                 self.pagina_actual = min(max(1, pregunta_maxima_alcanzada), max(1, total))
             else:
                 primera_sin_responder = 1
@@ -4731,8 +4879,8 @@ class App:
             self.cargar_pregunta(self.pagina_actual)
             self.actualizar_timer()
 
-            # Iniciar verificación periódica de tiempo desde el servidor (cada 30 segundos)
-            self.root.after(30000, self.verificar_tiempo_servidor)
+            # Iniciar verificación periódica de tiempo y estado desde el servidor (cada 4 segundos)
+            self.root.after(4000, self.verificar_tiempo_servidor)
 
             self.iniciar_mensajeria()
 
@@ -5184,17 +5332,17 @@ class App:
         if hasattr(self, 'en_pantalla_resumen') and self.en_pantalla_resumen:
             # Programar próxima verificación
             if examen_activo and getattr(self, '_verificacion_tiempo_activa', True):
-                self.root.after(30000, self.verificar_tiempo_servidor)
+                self.root.after(4000, self.verificar_tiempo_servidor)
             return
 
         if self._tiempo_sync_en_curso:
             if examen_activo and getattr(self, '_verificacion_tiempo_activa', True):
-                self.root.after(30000, self.verificar_tiempo_servidor)
+                self.root.after(4000, self.verificar_tiempo_servidor)
             return
 
         self._tiempo_sync_en_curso = True
         if examen_activo and getattr(self, '_verificacion_tiempo_activa', True):
-            self.root.after(30000, self.verificar_tiempo_servidor)
+            self.root.after(4000, self.verificar_tiempo_servidor)
         
         def hacer_verificacion():
             result = None

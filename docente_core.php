@@ -692,7 +692,53 @@ if (isset($_POST['action'])) {
         $resNom = $conn->query("SELECT nombres FROM usuarios WHERE id = $uid LIMIT 1");
         $nombre_est = ($resNom && $rNom = $resNom->fetch_assoc()) ? trim((string)$rNom['nombres']) : "Estudiante #$uid";
 
-        if ($tipo === 'reanudar') {
+        if ($tipo === 'pausar') {
+            // Pausar al estudiante insertando alerta de seguridad tipo pausa_docente
+            $motivo = "Examen pausado temporalmente por el docente.";
+            $conn->query("INSERT INTO notificaciones_seguridad_examen 
+                          (docente_id, curso_id, examen_id, estudiante_id, tipo, motivo, oculto_docente, fecha_creacion)
+                          VALUES ($usuario_id, $cid, $eid, $uid, 'pausa_docente', '$motivo', 0, NOW())");
+
+            // Asegurar que puntaje_total siga en -1 para conservar el intento activo
+            $conn->query("UPDATE resultados_examen 
+                          SET puntaje_total = -1 
+                          WHERE examen_id = $eid AND estudiante_id = $uid");
+
+            // Obtener estado de avance para el mensaje informativo
+            $res_prog = $conn->query("SELECT orden_preguntas, respuestas_json, pregunta_actual FROM resultados_examen WHERE examen_id = $eid AND estudiante_id = $uid LIMIT 1");
+            $total_p = 0; $resp_p = 0; $act_p = 1;
+            if ($res_prog && $rProg = $res_prog->fetch_assoc()) {
+                $o_arr = !empty($rProg['orden_preguntas']) ? array_filter(explode(',', $rProg['orden_preguntas'])) : [];
+                $r_arr = !empty($rProg['respuestas_json']) ? json_decode($rProg['respuestas_json'], true) : [];
+                $total_p = count($o_arr);
+                $resp_p = is_array($r_arr) ? count($r_arr) : 0;
+                $act_p = (int)($rProg['pregunta_actual'] ?? 0);
+                if ($act_p <= 0) {
+                    $act_p = $total_p > 0 ? min($total_p, $resp_p + 1) : 1;
+                }
+            }
+
+            registrar_log($usuario_id, $usuario_nombre, 'docente', 'PAUSAR_EXAMEN', 'Intento', $uid, "$nombre_est | Examen $eid (Pausado en Pregunta #$act_p de $total_p)");
+
+            $mensajeHtml = "El examen de <strong>" . htmlspecialchars($nombre_est) . "</strong> ha sido pausado exitosamente.<br><br>" .
+                           "<div style='background:#fefce8; border:1px solid #fde047; border-radius:8px; padding:12px; text-align:left; margin:10px 0;'>" .
+                           "<div><strong>Estado actual:</strong> <span style='color:#ca8a04; font-weight:700;'>⏸️ Examen Pausado</span></div>" .
+                           "<div style='margin-top:4px;'><strong>Detenido en:</strong> Pregunta #$act_p de $total_p</div>" .
+                           "<div style='margin-top:4px;'><strong>Respuestas seguras:</strong> $resp_p respondidas conservadas</div>" .
+                           "</div>" .
+                           "<small style='color:#64748b;'>La aplicación del estudiante se pausará de inmediato y no podrá continuar hasta que lo reanudes.</small>";
+
+            echo json_encode([
+                'success' => true,
+                'tipo' => 'pausar',
+                'estudiante_nombre' => $nombre_est,
+                'pregunta_actual' => $act_p,
+                'total_preguntas' => $total_p,
+                'respondidas' => $resp_p,
+                'mensaje' => $mensajeHtml
+            ]);
+            exit;
+        } elseif ($tipo === 'reanudar') {
             // Desbloquear al estudiante ocultando la alerta de seguridad para el docente
             $conn->query("UPDATE notificaciones_seguridad_examen 
                           SET oculto_docente = 1 
@@ -702,6 +748,19 @@ if (isset($_POST['action'])) {
             $conn->query("UPDATE resultados_examen 
                           SET puntaje_total = -1 
                           WHERE examen_id = $eid AND estudiante_id = $uid");
+
+            // Si la fecha de fin del examen ya pasó o está por cerrar, extenderla para dar margen al estudiante reanudado
+            $resEx = $conn->query("SELECT fecha_fin, estado FROM examenes WHERE id = $eid LIMIT 1");
+            if ($resEx && $rEx = $resEx->fetch_assoc()) {
+                $finEx = new DateTime($rEx['fecha_fin']);
+                $ahora = new DateTime();
+                if ($finEx <= $ahora || $rEx['estado'] !== 'activo') {
+                    $nuevaFin = clone $ahora;
+                    $nuevaFin->modify('+60 minutes');
+                    $nuevaFinStr = $nuevaFin->format('Y-m-d H:i:s');
+                    $conn->query("UPDATE examenes SET fecha_fin = '$nuevaFinStr', estado = 'activo' WHERE id = $eid");
+                }
+            }
 
             // Obtener estado de avance para el mensaje informativo
             $res_prog = $conn->query("SELECT orden_preguntas, respuestas_json, pregunta_actual FROM resultados_examen WHERE examen_id = $eid AND estudiante_id = $uid LIMIT 1");
@@ -736,6 +795,7 @@ if (isset($_POST['action'])) {
                 'respondidas' => $resp_p,
                 'mensaje' => $mensajeHtml
             ]);
+            exit;
         } else {
             // Reiniciar intento desde el inicio
             $conn->query("UPDATE notificaciones_seguridad_examen 
@@ -784,13 +844,13 @@ if (isset($_POST['action'])) {
                        re.orden_preguntas, re.respuestas_json, re.tiempos_respuestas_json, re.pregunta_actual,
                        (SELECT ns.motivo FROM notificaciones_seguridad_examen ns 
                         WHERE ns.examen_id = re.examen_id AND ns.estudiante_id = re.estudiante_id AND COALESCE(ns.oculto_docente, 0) = 0 
-                        ORDER BY ns.fecha_creacion DESC LIMIT 1) AS seguridad_motivo,
+                        ORDER BY ns.fecha_creacion DESC, ns.id DESC LIMIT 1) AS seguridad_motivo,
                        (SELECT ns.tipo FROM notificaciones_seguridad_examen ns 
                         WHERE ns.examen_id = re.examen_id AND ns.estudiante_id = re.estudiante_id AND COALESCE(ns.oculto_docente, 0) = 0 
-                        ORDER BY ns.fecha_creacion DESC LIMIT 1) AS seguridad_tipo,
+                        ORDER BY ns.fecha_creacion DESC, ns.id DESC LIMIT 1) AS seguridad_tipo,
                        (SELECT ns.fecha_creacion FROM notificaciones_seguridad_examen ns 
                         WHERE ns.examen_id = re.examen_id AND ns.estudiante_id = re.estudiante_id AND COALESCE(ns.oculto_docente, 0) = 0 
-                        ORDER BY ns.fecha_creacion DESC LIMIT 1) AS seguridad_fecha
+                        ORDER BY ns.fecha_creacion DESC, ns.id DESC LIMIT 1) AS seguridad_fecha
                 FROM resultados_examen re 
                 JOIN usuarios u ON re.estudiante_id = u.id 
                 WHERE re.examen_id = $eid 

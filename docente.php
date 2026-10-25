@@ -2493,20 +2493,23 @@ function abrirIntentos(examenId) {
             const pregAct = parseInt(i.pregunta_actual_num || (respP + 1));
             const progTxt = totalP > 0 ? ` (Pregunta #${pregAct} de ${totalP} | ${respP} respondidas)` : '';
 
-            if (i.seguridad_motivo && i.puntaje_total == -1) {
+            const estaEnCurso = (i.puntaje_total == -1 || parseFloat(i.puntaje_total) === -1);
+            const estaPausado = Boolean(i.seguridad_motivo && estaEnCurso);
+
+            if (estaPausado) {
                 const mot = escapeHtml(i.seguridad_motivo);
-                ptj = `<div style="background:#fee2e2; color:#991b1b; padding:6px 10px; border-radius:6px; border:1px solid #fca5a5; display:inline-block; font-size:12px; text-align:left;">
-                    <div style="font-weight:700;">⚠️ Examen Pausado${progTxt}</div>
-                    <small style="color:#b91c1c; display:block; margin-top:2px;">Motivo: ${mot}</small>
+                ptj = `<div style="background:#fef3c7; color:#92400e; padding:6px 10px; border-radius:6px; border:1px solid #fde68a; display:inline-block; font-size:12px; text-align:left;">
+                    <div style="font-weight:700;">⏸️ Examen Pausado${progTxt}</div>
+                    <small style="color:#b45309; display:block; margin-top:2px;">Motivo: ${mot}</small>
+                </div>`;
+            } else if (estaEnCurso) {
+                ptj = `<div style="background:#e0f2fe; color:#0369a1; padding:6px 10px; border-radius:6px; border:1px solid #bae6fd; display:inline-block; font-size:12px; font-weight:700; text-align:left;">
+                    ⏳ Rindiendo${progTxt}
                 </div>`;
             } else if (i.seguridad_motivo) {
                 const mot = escapeHtml(i.seguridad_motivo);
                 const scoreColor = parseFloat(i.puntaje_total) < 7 ? '#ef4444' : '#10b981';
                 ptj = `<span style="color:${scoreColor}; font-weight:bold; font-size:13px;">${parseFloat(i.puntaje_total).toFixed(2)}</span> <span style="background:#fee2e2; color:#b91c1c; font-size:11px; padding:2px 6px; border-radius:4px; margin-left:4px;" title="${mot}">⚠️ ${mot}</span>`;
-            } else if (i.puntaje_total == -1) {
-                ptj = `<div style="background:#e0f2fe; color:#0369a1; padding:6px 10px; border-radius:6px; border:1px solid #bae6fd; display:inline-block; font-size:12px; font-weight:700; text-align:left;">
-                    ⏳ Rindiendo${progTxt}
-                </div>`;
             } else {
                 ptj = `<span style="color:${parseFloat(i.puntaje_total)<7?'#ef4444':'#10b981'}; font-weight:bold; font-size:14px;">${parseFloat(i.puntaje_total).toFixed(2)}</span>`;
             }
@@ -2522,9 +2525,12 @@ function abrirIntentos(examenId) {
                 <td style="text-align:center; padding:10px 12px;">${ptj}</td>
                 <td style="white-space:nowrap; text-align:center; padding:10px 12px;">
                     <button type="button" class="btn btn-sm" style="background:#0284c7; color:white; border:none; padding:5px 9px; margin-right:4px; font-weight:600; font-size:12px; border-radius:4px; cursor:pointer;" onclick="abrirProgresoVivo(${examenId}, ${i.estudiante_id})" title="Ver en vivo qué pregunta va respondiendo y horas exactas con segundos">👁️ En Vivo</button>
-                    ${(i.seguridad_motivo || i.puntaje_total == -1) ? `
-                        <button type="button" class="btn btn-sm" style="background:#10b981; color:white; border:none; padding:5px 9px; margin-right:4px; font-weight:600; font-size:12px; border-radius:4px; cursor:pointer;" onclick="gestionarIntento(${examenId}, ${i.estudiante_id}, 'reanudar', '${nombreEsc}')" title="Reanudar examen desde donde se quedó (conserva sus respuestas)">▶ Reanudar</button>
-                        <button type="button" class="btn btn-sm" style="background:#f97316; color:white; border:none; padding:5px 9px; font-weight:600; font-size:12px; border-radius:4px; cursor:pointer;" onclick="gestionarIntento(${examenId}, ${i.estudiante_id}, 'reiniciar', '${nombreEsc}')" title="Reiniciar intento desde el inicio (borra respuestas)">↻ Reiniciar</button>
+                    ${estaPausado ? `
+                        <button type="button" class="btn btn-sm" style="background:#10b981; color:white; border:none; padding:5px 10px; margin-right:4px; font-weight:600; font-size:12px; border-radius:4px; cursor:pointer;" onclick="gestionarIntento(${examenId}, ${i.estudiante_id}, 'reanudar', '${nombreEsc}')" title="Reanudar examen desde donde se quedó (conserva sus respuestas)">▶ Reanudar</button>
+                        <button type="button" class="btn btn-sm" style="background:#f97316; color:white; border:none; padding:5px 10px; font-weight:600; font-size:12px; border-radius:4px; cursor:pointer;" onclick="gestionarIntento(${examenId}, ${i.estudiante_id}, 'reiniciar', '${nombreEsc}')" title="Reiniciar intento desde el inicio (borra respuestas)">↻ Reiniciar</button>
+                    ` : estaEnCurso ? `
+                        <button type="button" class="btn btn-sm" style="background:#f59e0b; color:white; border:none; padding:5px 10px; margin-right:4px; font-weight:600; font-size:12px; border-radius:4px; cursor:pointer;" onclick="gestionarIntento(${examenId}, ${i.estudiante_id}, 'pausar', '${nombreEsc}')" title="Pausar o detener temporalmente el examen del estudiante">⏸️ Pausar</button>
+                        <button type="button" class="btn btn-sm" style="background:#f97316; color:white; border:none; padding:5px 10px; font-weight:600; font-size:12px; border-radius:4px; cursor:pointer;" onclick="gestionarIntento(${examenId}, ${i.estudiante_id}, 'reiniciar', '${nombreEsc}')" title="Reiniciar intento desde el inicio (borra respuestas)">↻ Reiniciar</button>
                     ` : `
                         <button class="btn btn-sm btn-outline" style="margin-right:4px; padding:5px 9px; font-size:12px;" onclick="verRevision(${examenId}, ${i.estudiante_id})" title="Revisar respuestas">📖 Revisión</button>
                         <button type="button" class="btn btn-sm btn-outline" style="padding:5px 9px; font-size:12px;" onclick="gestionarIntento(${examenId}, ${i.estudiante_id}, 'reiniciar', '${nombreEsc}')" title="Reiniciar intento desde el inicio">↻</button>
@@ -2576,6 +2582,20 @@ function gestionarIntento(examenId, estudianteId, tipo, nombreEstudiante = '') {
             () => ejecutarGestionIntento(examenId, estudianteId, tipo),
             false
         );
+    } else if (tipo === 'pausar') {
+        mostrarConfirmacionUG(
+            'Pausar Examen',
+            `¿Deseas pausar temporalmente el examen a <strong>${escapeHtml(nombre)}</strong>?<br><br>` +
+            `<div style="text-align:left; background:#fefce8; border:1px solid #fde047; padding:12px; border-radius:6px; font-size:13px; color:#854d0e; line-height:1.5;">` +
+            `• La aplicación del estudiante se detendrá de inmediato.<br>` +
+            `• Se registrará con exactitud la pregunta en que se quedó.<br>` +
+            `• Todas sus respuestas se conservarán seguras y sin alteraciones.<br>` +
+            `• Podrás reanudar el examen en cualquier momento con el botón <strong>▶ Reanudar</strong>.` +
+            `</div>`,
+            '⏸️ Pausar Examen',
+            () => ejecutarGestionIntento(examenId, estudianteId, tipo),
+            false
+        );
     } else {
         mostrarConfirmacionUG(
             'Reiniciar Examen desde Cero',
@@ -2605,9 +2625,14 @@ function ejecutarGestionIntento(examenId, estudianteId, tipo) {
             return;
         }
 
+        let tituloModal = 'Operación Exitosa';
+        if (tipo === 'reanudar') tituloModal = 'Examen Reanudado';
+        else if (tipo === 'pausar') tituloModal = 'Examen Pausado';
+        else if (tipo === 'reiniciar') tituloModal = 'Examen Reiniciado';
+
         // Mostrar emergente propio de UG (sin alert de navegador y sin recargar la página)
         mostrarAvisoUG(
-            tipo === 'reanudar' ? 'Examen Reanudado' : 'Examen Reiniciado',
+            tituloModal,
             data.mensaje || 'Operación completada con éxito.',
             'success'
         );
