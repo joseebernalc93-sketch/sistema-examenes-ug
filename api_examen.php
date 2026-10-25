@@ -875,6 +875,13 @@ switch ($action) {
                 $ya_rendido = ($nota_num !== null && $nota_num >= 0.0);
                 $esta_pausado = !empty($row['seguridad_motivo']) && $en_progreso;
 
+                // Si el examen está cerrado por el docente:
+                // Solo si el estudiante lo completó (ya_rendido) se muestra; si no lo completó o estaba rindiendo,
+                // NO se debe reflejar en el aplicativo del estudiante.
+                if ($row['estado'] === 'cerrado' && !$ya_rendido) {
+                    continue;
+                }
+
                 $row['total_preguntas'] = $total_p;
                 $row['respondidas_count'] = $resp_p;
                 $row['pregunta_actual'] = $act_p;

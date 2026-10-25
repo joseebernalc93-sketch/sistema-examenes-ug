@@ -167,7 +167,10 @@ $sel_par = $notas_seleccion['paralelo'] ?? '';
                 $val = $notas_resultados_map[$est_id][$ex['id']] ?? null;
                 if ($val === null) continue;
                 $num = (float)$val;
-                if ($num === -1.0) { $rindiendoP1 = true; continue; }
+                if ($num === -1.0) {
+                  if (($ex['estado'] ?? '') === 'activo') { $rindiendoP1 = true; }
+                  continue;
+                }
                 $sumP1 += $num;
                 $countP1++;
               }
@@ -176,7 +179,10 @@ $sel_par = $notas_seleccion['paralelo'] ?? '';
                 $val = $notas_resultados_map[$est_id][$ex['id']] ?? null;
                 if ($val === null) continue;
                 $num = (float)$val;
-                if ($num === -1.0) { $rindiendoP2 = true; continue; }
+                if ($num === -1.0) {
+                  if (($ex['estado'] ?? '') === 'activo') { $rindiendoP2 = true; }
+                  continue;
+                }
                 $sumP2 += $num;
                 $countP2++;
               }

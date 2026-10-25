@@ -1148,6 +1148,7 @@ function construirResumenParcialesPorEstudiante(exams) {
     (exams || []).forEach(ex => {
         const parcial = (ex && ex.parcial === 'segundo_parcial') ? 'segundo' : 'primer';
         const intentos = (intentosData && intentosData[ex.id]) ? intentosData[ex.id] : [];
+        const exCerrado = (ex && ex.estado === 'cerrado');
 
         (intentos || []).forEach(it => {
             const sid = String(it.estudiante_id || '');
@@ -1169,6 +1170,20 @@ function construirResumenParcialesPorEstudiante(exams) {
             const estaRindiendo = (puntaje === -1);
             const tieneAlerta = !!(it.seguridad_motivo && String(it.seguridad_motivo).trim() !== '');
 
+            // Si el examen está CERRADO:
+            // Solo cuenta como completado si realmente lo completó (puntaje >= 0).
+            // Si estaba rindiendo o pausado y fue cerrado por el docente, NO debe salir como rindiendo: debe quedar Pendiente.
+            if (exCerrado) {
+                if (!estaRindiendo && puntaje >= 0) {
+                    if (parcial === 'primer') {
+                        resumen[sid].evaluado_primer = true;
+                    } else {
+                        resumen[sid].evaluado_segundo = true;
+                    }
+                }
+                return;
+            }
+
             if (tieneAlerta) {
                 resumen[sid].motivo_seguridad = it.seguridad_motivo;
             }
@@ -1176,17 +1191,17 @@ function construirResumenParcialesPorEstudiante(exams) {
             if (parcial === 'primer') {
                 if (tieneAlerta && estaRindiendo) {
                     resumen[sid].pausado_primer = true;
-                } else if (!estaRindiendo) {
+                } else if (!estaRindiendo && puntaje >= 0) {
                     resumen[sid].evaluado_primer = true;
-                } else {
+                } else if (estaRindiendo) {
                     resumen[sid].rindiendo_primer = true;
                 }
             } else {
                 if (tieneAlerta && estaRindiendo) {
                     resumen[sid].pausado_segundo = true;
-                } else if (!estaRindiendo) {
+                } else if (!estaRindiendo && puntaje >= 0) {
                     resumen[sid].evaluado_segundo = true;
-                } else {
+                } else if (estaRindiendo) {
                     resumen[sid].rindiendo_segundo = true;
                 }
             }
@@ -1214,13 +1229,13 @@ function obtenerBadgeEstadoParcial(resumenParcial) {
     const rp2 = !!resumenParcial.rindiendo_segundo;
 
     if (p1 && p2) {
-        return '<span class="status-badge status-activo">Evaluado (1er y 2do parcial)</span>';
+        return '<span class="status-badge status-activo">Completado (1er y 2do parcial)</span>';
     }
     if (p1) {
-        return '<span class="status-badge" style="background:#dbeafe; color:#1d4ed8;">Evaluado (1er parcial)</span>';
+        return '<span class="status-badge" style="background:#dbeafe; color:#1d4ed8;">Completado (1er parcial)</span>';
     }
     if (p2) {
-        return '<span class="status-badge" style="background:#dcfce7; color:#166534;">Evaluado (2do parcial)</span>';
+        return '<span class="status-badge" style="background:#dcfce7; color:#166534;">Completado (2do parcial)</span>';
     }
     if (rp1 && rp2) {
         return '<span class="status-badge" style="background:#fef3c7; color:#92400e">Rindiendo (1er y 2do parcial)</span>';
@@ -2981,6 +2996,9 @@ function verNotas(cursoId) {
             if (!intento) return;
 
             const notaRaw = Number(intento.puntaje_total);
+            if (ex && ex.estado === 'cerrado' && notaRaw === -1) {
+                return;
+            }
             if (intento.seguridad_motivo && notaRaw === -1) {
                 pausado = true;
                 motivoPausado = intento.seguridad_motivo;

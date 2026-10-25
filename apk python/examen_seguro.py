@@ -3420,7 +3420,18 @@ class App:
                      font=('Segoe UI', 12), fg=COLORS['danger'], bg=COLORS['bg_light']).pack(pady=50)
             return
 
-        examenes = result.get('examenes', [])
+        examenes_raw = result.get('examenes', [])
+        examenes = []
+        for ex in examenes_raw:
+            nota = ex.get('nota_registrada')
+            ya_rendido = False
+            try:
+                ya_rendido = (nota is not None and float(nota) >= 0.0)
+            except (ValueError, TypeError):
+                ya_rendido = False
+            if ex.get('estado') == 'cerrado' and not ya_rendido:
+                continue
+            examenes.append(ex)
         if not examenes:
             empty_frame = tk.Frame(self.frame_lista, bg=COLORS['bg_white'], padx=45, pady=45,
                                   highlightbackground=COLORS['border'], highlightthickness=1)
