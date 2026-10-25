@@ -217,6 +217,15 @@ class SupabasePdoAdapter {
         // Traducir FIELD(col, a, b, c) -> array_position(ARRAY[a, b, c], col)
         $sql = preg_replace('/FIELD\s*\(\s*(\w+)\s*,\s*(.*?)\s*\)/i', 'array_position(ARRAY[$2], $1)', $sql);
 
+        // Traducir RAND() -> RANDOM()
+        $sql = preg_replace('/\bRAND\s*\(\s*\)/i', 'RANDOM()', $sql);
+
+        // Traducir INTERVAL X MINUTE/DAY/HOUR/SECOND -> INTERVAL 'X MINUTE'
+        $sql = preg_replace('/\bINTERVAL\s+(\d+)\s+([a-zA-Z]+)/i', "INTERVAL '$1 $2'", $sql);
+
+        // Eliminar 'AFTER columna' de ALTER TABLE (no soportado en PG)
+        $sql = preg_replace('/\s+AFTER\s+[`"\w]+/i', '', $sql);
+
         // Traducir ON DUPLICATE KEY UPDATE para areas_materias (UK nombre_materia)
         if (stripos($sql, 'areas_materias') !== false && stripos($sql, 'ON DUPLICATE KEY UPDATE') !== false) {
             $sql = preg_replace('/ON\s+DUPLICATE\s+KEY\s+UPDATE\s+(.*)$/i', 'ON CONFLICT (nombre_materia) DO UPDATE SET $1', $sql);
