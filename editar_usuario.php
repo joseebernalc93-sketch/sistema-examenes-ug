@@ -13,7 +13,58 @@ include "db.php"; // Asegúrate de que este archivo contiene la conexión $conn
  * =================================================================== */
 
 if (!isset($_SESSION["usuario"]) || $_SESSION["usuario"]["rol"] != "administrador") {
+    if (isset($_GET['api'])) {
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['ok' => false, 'error' => 'No autorizado']);
+        exit;
+    }
     header("Location: index.php");
+    exit;
+}
+
+/* ================= API embebida (para los combos) =================== */
+if (isset($_GET['api'])) {
+    header('Content-Type: application/json; charset=utf-8');
+    $api = $_GET['api'];
+
+    if ($api === 'facultades') {
+        $q = $conn->query("SELECT id, nombre FROM facultades ORDER BY nombre ASC");
+        $rows = $q ? $q->fetch_all(MYSQLI_ASSOC) : [];
+        echo json_encode(['ok' => true, 'data' => $rows], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    if ($api === 'carreras') {
+        $fid = (int)($_GET['facultad_id'] ?? 0);
+        if (!$fid) { echo json_encode(['ok' => false, 'error' => 'facultad_id requerido']); exit; }
+        $st = $conn->prepare("SELECT id, nombre FROM carreras WHERE facultad_id=? ORDER BY nombre ASC");
+        $st->bind_param('i', $fid);
+        $st->execute();
+        $res = $st->get_result();
+        $rows = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
+        echo json_encode(['ok' => true, 'data' => $rows], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    if ($api === 'materias') {
+        $cid = (int)($_GET['carrera_id'] ?? 0);
+        if (!$cid) { echo json_encode(['ok' => false, 'error' => 'carrera_id requerido']); exit; }
+        $st = $conn->prepare("
+          SELECT DISTINCT m.id, m.nombre
+          FROM materias m
+          JOIN semestres s ON s.id = m.semestre_id
+          WHERE s.carrera_id = ?
+          ORDER BY m.nombre ASC
+        ");
+        $st->bind_param('i', $cid);
+        $st->execute();
+        $res = $st->get_result();
+        $rows = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
+        echo json_encode(['ok' => true, 'data' => $rows], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    echo json_encode(['ok' => false, 'error' => 'acción no soportada']);
     exit;
 }
 
@@ -105,41 +156,7 @@ if ($q) while ($r = $q->fetch_assoc()) {
   $materias_by_car[$cid][] = ['id' => (int)$r['id'], 'nombre' => $r['nombre']];
 }
 
-/* ================= API embebida (para los combos) =================== */
-if (isset($_GET['api'])) {
-  header('Content-Type: application/json; charset=utf-8');
-  $api = $_GET['api'];
 
-  if ($api === 'facultades') {
-    echo json_encode(['ok' => true, 'data' => $facultades_init], JSON_UNESCAPED_UNICODE); exit;
-  }
-
-  if ($api === 'carreras') {
-    $fid = (int)($_GET['facultad_id'] ?? 0);
-    if (!$fid) { echo json_encode(['ok'=>false,'error'=>'facultad_id requerido']); exit; }
-    $st = $conn->prepare("SELECT id, nombre FROM carreras WHERE facultad_id=? ORDER BY nombre ASC");
-    $st->bind_param('i', $fid); $st->execute(); $res = $st->get_result();
-    $rows = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
-    echo json_encode(['ok'=>true,'data'=>$rows], JSON_UNESCAPED_UNICODE); exit;
-  }
-
-  if ($api === 'materias') {
-    $cid = (int)($_GET['carrera_id'] ?? 0);
-    if (!$cid) { echo json_encode(['ok'=>false,'error'=>'carrera_id requerido']); exit; }
-    $st = $conn->prepare("
-      SELECT DISTINCT m.id, m.nombre
-      FROM materias m
-      JOIN semestres s ON s.id = m.semestre_id
-      WHERE s.carrera_id = ?
-      ORDER BY m.nombre ASC
-    ");
-    $st->bind_param('i', $cid); $st->execute(); $res = $st->get_result();
-    $rows = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
-    echo json_encode(['ok'=>true,'data'=>$rows], JSON_UNESCAPED_UNICODE); exit;
-  }
-
-  echo json_encode(['ok'=>false,'error'=>'acción no soportada']); exit;
-}
 
 /* =========== Ofertas para el múltiple + paralelos ocupados =========== */
 
@@ -628,12 +645,11 @@ async function api(q){
     const r=await fetch(API_BASE+'?'+q,{cache:'no-store'});
     const j=await r.json();
     if(!j.ok) throw new Error(j.error||'No OK');
-    apiWarn.style.display='none';
+    if(apiWarn) apiWarn.style.display='none';
     return j.data;
   }catch(e){
     console.warn('API fallback',e);
-    apiWarn.style.display='block';
-    apiWarn.textContent='⚠ Sin conexión a API; usando datos locales.';
+    if(apiWarn) apiWarn.style.display='none';
     return null;
   }
 }
