@@ -120,30 +120,39 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         .password-wrapper {
             position: relative;
             width: 100%;
+            margin: 8px 0;
         }
         .password-wrapper input {
-            padding-right: 42px;
+            margin: 0 !important;
+            padding-right: 42px !important;
+            box-sizing: border-box;
         }
         .toggle-password {
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none !important;
+            position: absolute !important;
+            right: 12px !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            width: 24px !important;
+            height: 24px !important;
+            min-width: 24px !important;
+            max-width: 24px !important;
+            background: transparent !important;
             border: none !important;
             padding: 0 !important;
             margin: 0 !important;
-            width: auto !important;
-            color: #64748b;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            outline: none;
-            transition: color 0.2s;
+            box-shadow: none !important;
+            color: #64748b !important;
+            cursor: pointer !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            outline: none !important;
+            transition: color 0.2s !important;
+            z-index: 5;
         }
         .toggle-password:hover {
-            color: #004aad;
+            color: #004aad !important;
+            background: transparent !important;
         }
     </style>
 </head>

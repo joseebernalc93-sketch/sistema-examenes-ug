@@ -373,6 +373,44 @@ label { font-size: 13px; font-weight: 700; color: #334155; display: block; margi
 .help { font-size: 12px; color: #64748b; margin-top: 2px; }
 .warn { color: #dc3545; font-size: 12px; margin-top: 2px; font-weight: 600; }
 
+.password-wrapper {
+    position: relative;
+    width: 100%;
+    margin: 8px 0;
+}
+.password-wrapper input {
+    margin: 0 !important;
+    padding-right: 42px !important;
+    box-sizing: border-box;
+}
+.password-wrapper .toggle-password {
+    position: absolute !important;
+    right: 12px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+    max-width: 24px !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    color: #64748b !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    outline: none !important;
+    transition: color 0.2s !important;
+    z-index: 5;
+}
+.password-wrapper .toggle-password:hover {
+    color: #0f6cb6 !important;
+    background: transparent !important;
+}
+
 /* === PREVIEW MEJORADA (ESTÉTICA) === */
 .preview {
     margin-top: 12px;
@@ -483,9 +521,9 @@ label { font-size: 13px; font-weight: 700; color: #334155; display: block; margi
     <div id="emailError" class="warn"></div>
 
     <label>Contraseña (Opcional):</label>
-    <div style="position:relative; width:100%;">
-        <input type="password" id="edit_password" name="password" placeholder="Dejar vacío para mantener la actual" style="padding-right:42px;">
-        <button type="button" onclick="toggleEditPass(this)" title="Mostrar/ocultar contraseña" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); background:none; border:none; color:#64748b; cursor:pointer; padding:0; display:flex; align-items:center;">
+    <div class="password-wrapper">
+        <input type="password" id="edit_password" name="password" placeholder="Dejar vacío para mantener la actual">
+        <button type="button" class="toggle-password" onclick="toggleEditPass(this)" title="Mostrar/ocultar contraseña" aria-label="Mostrar/ocultar contraseña">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
         </button>
     </div>
