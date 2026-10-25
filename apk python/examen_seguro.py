@@ -2849,7 +2849,7 @@ class App:
         tk.Label(info_prog_frame, text=f"📍 Te has quedado en la Pregunta #{pag_actual}",
                  font=('Segoe UI', 11, 'bold'), fg='#15803d', bg='#f0fdf4').pack(anchor='w')
         tk.Label(info_prog_frame, text=f"Tus {resp_guardadas_len} respuestas guardadas están completamente aseguradas en el sistema.",
-                 font=('Segoe UI', 9.5), fg='#166534', bg='#f0fdf4').pack(anchor='w', pady=(2, 0))
+                 font=('Segoe UI', 10), fg='#166534', bg='#f0fdf4').pack(anchor='w', pady=(2, 0))
 
         if es_pausa_docente:
             msg_instrucciones = (
@@ -3299,12 +3299,13 @@ class App:
                 self.root.after_cancel(self._auto_refresh_examenes_id)
             except Exception:
                 pass
-        self._auto_refresh_examenes_id = self.root.after(15000, self._auto_refresh_examenes)
+        self._auto_refresh_examenes_id = self.root.after(4000, self._auto_refresh_examenes)
 
     def _auto_refresh_examenes(self):
         if not getattr(self, '_vista_examenes_activa', False):
             return
         self.refrescar_examenes(silent=True)
+        self._programar_auto_refresh_examenes()
 
     def _detener_auto_refresh_examenes(self):
         self._vista_examenes_activa = False
@@ -3416,7 +3417,7 @@ class App:
                  fg=COLORS['text_dark'], bg=COLORS['bg_light']).pack(side='left')
 
         tk.Label(title_frame, text="Consulta tus evaluaciones programadas, continúa exámenes en curso o revisa tus notas registradas.",
-                 font=('Segoe UI', 9.5), fg=COLORS['text_muted'], bg=COLORS['bg_light']).pack(anchor='w', pady=(4, 0))
+                 font=('Segoe UI', 10), fg=COLORS['text_muted'], bg=COLORS['bg_light']).pack(anchor='w', pady=(4, 0))
 
         # Frame scrollable para la lista
         self.frame_lista = tk.Frame(content, bg=COLORS['bg_light'])
@@ -3470,7 +3471,7 @@ class App:
             tk.Label(empty_frame, text="📭", font=('Segoe UI', 44), bg=COLORS['bg_white']).pack()
             tk.Label(empty_frame, text="No tienes evaluaciones programadas por el momento", font=('Segoe UI', 13, 'bold'),
                      fg=COLORS['text_dark'], bg=COLORS['bg_white']).pack(pady=(10, 4))
-            tk.Label(empty_frame, text="Tus exámenes aparecerán aquí cuando tu docente los active en el sistema.", font=('Segoe UI', 9.5),
+            tk.Label(empty_frame, text="Tus exámenes aparecerán aquí cuando tu docente los active en el sistema.", font=('Segoe UI', 10),
                      fg=COLORS['text_muted'], bg=COLORS['bg_white']).pack()
             return
 
@@ -3484,12 +3485,13 @@ class App:
 
         num_ex = len(examenes)
         if num_ex == 1:
-            columnas = 1
-            card_max_w = min(680, max(460, ancho - 80))
             cards_grid.grid_columnconfigure(0, weight=1)
             for ex in examenes:
-                card = self.crear_card_examen(cards_grid, ex)
-                card.pack(anchor='center', fill='x', padx=10, pady=10)
+                try:
+                    card = self.crear_card_examen(cards_grid, ex)
+                    card.pack(anchor='center', fill='x', padx=10, pady=10)
+                except Exception as e:
+                    log(f"Error creando card de examen: {e}")
         else:
             columnas = max(1, min(3, max(1, ancho // 440)))
             for c in range(columnas):
@@ -3498,8 +3500,11 @@ class App:
             for i, ex in enumerate(examenes):
                 fila = i // columnas
                 col = i % columnas
-                card = self.crear_card_examen(cards_grid, ex)
-                card.grid(row=fila, column=col, padx=12, pady=12, sticky="nsew")
+                try:
+                    card = self.crear_card_examen(cards_grid, ex)
+                    card.grid(row=fila, column=col, padx=12, pady=12, sticky="nsew")
+                except Exception as e:
+                    log(f"Error creando card de examen grid: {e}")
 
     def crear_card_examen(self, parent, ex):
         """Crea una card de examen con diseño moderno y profesional de nivel universitario."""
@@ -3647,28 +3652,28 @@ class App:
         f_mat.grid(row=0, column=0, sticky='w', pady=3)
         tk.Label(f_mat, text="📘", font=('Segoe UI', 10), bg=COLORS['card_bg']).pack(side='left', padx=(0, 6))
         tk.Label(f_mat, text="Asignatura:", font=('Segoe UI', 9, 'bold'), fg=COLORS['text_muted'], bg=COLORS['card_bg']).pack(side='left', padx=(0, 4))
-        tk.Label(f_mat, text=materia, font=('Segoe UI', 9.5, 'bold'), fg=COLORS['text_dark'], bg=COLORS['card_bg']).pack(side='left')
+        tk.Label(f_mat, text=materia, font=('Segoe UI', 10, 'bold'), fg=COLORS['text_dark'], bg=COLORS['card_bg']).pack(side='left')
 
         # Item 2: Paralelo
         f_par = tk.Frame(meta_grid, bg=COLORS['card_bg'])
         f_par.grid(row=0, column=1, sticky='w', pady=3)
         tk.Label(f_par, text="🏷️", font=('Segoe UI', 10), bg=COLORS['card_bg']).pack(side='left', padx=(0, 6))
         tk.Label(f_par, text="Paralelo:", font=('Segoe UI', 9, 'bold'), fg=COLORS['text_muted'], bg=COLORS['card_bg']).pack(side='left', padx=(0, 4))
-        tk.Label(f_par, text=paralelo, font=('Segoe UI', 9.5), fg=COLORS['text_dark'], bg=COLORS['card_bg']).pack(side='left')
+        tk.Label(f_par, text=paralelo, font=('Segoe UI', 10), fg=COLORS['text_dark'], bg=COLORS['card_bg']).pack(side='left')
 
         # Item 3: Duración
         f_dur = tk.Frame(meta_grid, bg=COLORS['card_bg'])
         f_dur.grid(row=1, column=0, sticky='w', pady=3)
         tk.Label(f_dur, text="⏱️", font=('Segoe UI', 10), bg=COLORS['card_bg']).pack(side='left', padx=(0, 6))
         tk.Label(f_dur, text="Duración:", font=('Segoe UI', 9, 'bold'), fg=COLORS['text_muted'], bg=COLORS['card_bg']).pack(side='left', padx=(0, 4))
-        tk.Label(f_dur, text=duracion_txt, font=('Segoe UI', 9.5), fg=COLORS['text_dark'], bg=COLORS['card_bg']).pack(side='left')
+        tk.Label(f_dur, text=duracion_txt, font=('Segoe UI', 10), fg=COLORS['text_dark'], bg=COLORS['card_bg']).pack(side='left')
 
         # Item 4: Cantidad Preguntas
         f_cnt = tk.Frame(meta_grid, bg=COLORS['card_bg'])
         f_cnt.grid(row=1, column=1, sticky='w', pady=3)
         tk.Label(f_cnt, text="📝", font=('Segoe UI', 10), bg=COLORS['card_bg']).pack(side='left', padx=(0, 6))
         tk.Label(f_cnt, text="Evaluación:", font=('Segoe UI', 9, 'bold'), fg=COLORS['text_muted'], bg=COLORS['card_bg']).pack(side='left', padx=(0, 4))
-        tk.Label(f_cnt, text=total_p_txt, font=('Segoe UI', 9.5), fg=COLORS['text_dark'], bg=COLORS['card_bg']).pack(side='left')
+        tk.Label(f_cnt, text=total_p_txt, font=('Segoe UI', 10), fg=COLORS['text_dark'], bg=COLORS['card_bg']).pack(side='left')
 
         # ========= ÁREA DE ACCIONES Y CONTINUACIÓN =========
         tk.Frame(content, bg=COLORS['divider'], height=1).pack(fill='x', pady=(12, 0))
@@ -3797,7 +3802,7 @@ class App:
             cerrado_frame = tk.Frame(action_frame, bg='#f8fafc', padx=16, pady=10,
                                      highlightbackground='#e2e8f0', highlightthickness=1)
             cerrado_frame.pack(fill='x')
-            tk.Label(cerrado_frame, text="🔒 Este examen cerró su periodo de disponibilidad", font=('Segoe UI', 9.5), fg=COLORS['text_muted'], bg='#f8fafc').pack()
+            tk.Label(cerrado_frame, text="🔒 Este examen cerró su periodo de disponibilidad", font=('Segoe UI', 10), fg=COLORS['text_muted'], bg='#f8fafc').pack()
 
         return shadow_frame
 
