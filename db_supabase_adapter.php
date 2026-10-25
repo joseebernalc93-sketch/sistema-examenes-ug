@@ -45,11 +45,48 @@ class SupabaseResult {
         return $row ? array_values($row) : null;
     }
 
+    public function data_seek($offset = 0) {
+        $offset = (int)$offset;
+        if ($offset >= 0 && $offset <= $this->num_rows) {
+            $this->currentIndex = $offset;
+            return true;
+        }
+        return false;
+    }
+
+    public function fetch_array($mode = MYSQLI_BOTH) {
+        $row = $this->fetch_assoc();
+        if (!$row) return null;
+        if ($mode === MYSQLI_ASSOC) return $row;
+        if ($mode === MYSQLI_NUM) return array_values($row);
+        $both = $row;
+        $i = 0;
+        foreach ($row as $v) {
+            $both[$i++] = $v;
+        }
+        return $both;
+    }
+
+    public function fetch_object($class_name = 'stdClass', $params = []) {
+        $row = $this->fetch_assoc();
+        if (!$row) return null;
+        $obj = new $class_name(...$params);
+        foreach ($row as $k => $v) {
+            $obj->$k = $v;
+        }
+        return $obj;
+    }
+
     public function free() {
         $this->rows = [];
         $this->num_rows = 0;
     }
+
+    public function close() {
+        $this->free();
+    }
 }
+
 
 class SupabaseStmt {
     private $pdo;
