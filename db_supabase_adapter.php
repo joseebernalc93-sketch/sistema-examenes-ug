@@ -24,18 +24,32 @@ class SupabaseResult {
 
     public function fetch_assoc() {
         if ($this->currentIndex < $this->num_rows) {
-            return $this->rows[$this->currentIndex++];
+            $row = $this->rows[$this->currentIndex++];
+            foreach ($row as $k => $v) {
+                if (is_resource($v)) {
+                    $row[$k] = stream_get_contents($v);
+                } elseif (is_string($v) && strpos($v, '\\x') === 0 && strlen($v) % 2 === 0 && ctype_xdigit(substr($v, 2))) {
+                    $row[$k] = hex2bin(substr($v, 2));
+                }
+            }
+            return $row;
         }
         return null;
     }
 
     public function fetch_all($mode = MYSQLI_NUM) {
         if ($mode === MYSQLI_ASSOC) {
-            return $this->rows;
+            $res = [];
+            $this->data_seek(0);
+            while ($r = $this->fetch_assoc()) {
+                $res[] = $r;
+            }
+            return $res;
         }
         $result = [];
-        foreach ($this->rows as $row) {
-            $result[] = array_values($row);
+        $this->data_seek(0);
+        while ($r = $this->fetch_assoc()) {
+            $result[] = array_values($r);
         }
         return $result;
     }
@@ -86,7 +100,6 @@ class SupabaseResult {
         $this->free();
     }
 }
-
 
 class SupabaseStmt {
     private $pdo;
@@ -158,6 +171,14 @@ class SupabasePdoAdapter {
         // Quitar comillas invertidas (backticks) de MySQL
         $sql = str_replace('`', '', $sql);
 
+        // Traducir INSERT IGNORE INTO -> INSERT INTO ... ON CONFLICT DO NOTHING
+        if (preg_match('/^INSERT\s+IGNORE\s+INTO\s+(.*)$/is', $sql, $m)) {
+            $sql = "INSERT INTO " . $m[1];
+            if (stripos($sql, 'ON CONFLICT') === false) {
+                $sql = rtrim($sql, '; ') . " ON CONFLICT DO NOTHING";
+            }
+        }
+
         // Traducir SHOW TABLES LIKE 'xyz'
         if (preg_match('/SHOW\s+TABLES\s+LIKE\s+[\'"](.*?)[\'"]/i', $sql, $m)) {
             $tbl = str_replace(['%', '_'], ['.*', '.'], $m[1]);
@@ -217,6 +238,10 @@ class SupabasePdoAdapter {
 
     public function real_escape_string($str) {
         if ($str === null) return '';
+        // Si el string contiene bytes nulos o no es UTF-8 valido, es un archivo binario (BYTEA)
+        if (strpos($str, "\0") !== false || !mb_check_encoding($str, 'UTF-8')) {
+            return '\\x' . bin2hex($str);
+        }
         $quoted = $this->pdo->quote($str);
         return substr($quoted, 1, -1);
     }
