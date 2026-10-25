@@ -96,7 +96,7 @@ graph TD
 ├── estilos.php                  # Hojas de estilo unificadas y diseño visual UG
 ├── scripts.php                  # Librerías JavaScript comunes
 ├── if0_40427719_examenes_sistem.sql # Estructura y volcado completo de la base de datos
-├── app-escritorio/              # Código fuente de la app de escritorio en Python
+├── apk python/              # Código fuente de la app de escritorio en Python
 │   ├── examen_seguro.py         # Aplicación cliente completa con detector de seguridad
 │   ├── Imagenes/                # Íconos y logotipos oficiales de la UG
 │   ├── examen_seguro.spec       # Archivo de especificación para empaquetado PyInstaller
@@ -149,7 +149,7 @@ graph TD
 ### 4. Ejecutar la Aplicación de Escritorio
 En una terminal:
 ```bash
-cd app-escritorio
+cd apk python
 pip install requests pywin32 pillow
 python examen_seguro.py
 ```

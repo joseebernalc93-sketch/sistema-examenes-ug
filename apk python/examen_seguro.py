@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 VERSIÓN 9.7.1 - Sistema de Exámenes UG
@@ -37,6 +37,15 @@ Cambios de v9.6:
 - CORREGIDO: Distorsión de texto al volver del resumen (timers duplicados)
 - OPTIMIZADO: Gestión de memoria y recolección de basura
 """
+
+import sys
+try:
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    if hasattr(sys.stderr, 'reconfigure'):
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+except Exception:
+    pass
 
 import tkinter as tk
 from tkinter import ttk, messagebox
@@ -129,12 +138,18 @@ LOG_TO_FILE = False  # Desactiva escritura a archivo para evitar crear debug_exa
 def log(mensaje):
     timestamp = datetime.datetime.now().strftime("%H:%M:%S")
     texto = f"[{timestamp}] {mensaje}"
-    print(texto)
+    try:
+        print(texto)
+    except UnicodeEncodeError:
+        try:
+            print(texto.encode('ascii', errors='replace').decode('ascii'))
+        except Exception:
+            pass
     if LOG_TO_FILE and LOG_FILE:
         try:
             with open(LOG_FILE, "a", encoding="utf-8") as f:
                 f.write(texto + "\n")
-        except:
+        except Exception:
             pass
 
 def log_error(e):
@@ -408,7 +423,22 @@ except:
 # =======================================================
 #  CONFIGURACIÓN
 # =======================================================
-API_BASE_URL = "https://examensystem.infinityfree.me/api_examen.php"
+DEFAULT_API_URL = "https://examensystem.infinityfree.me/api_examen.php"
+API_BASE_URL = os.environ.get("EXAMEN_API_URL", DEFAULT_API_URL)
+
+# Cargar URL alternativa desde config.json si existe
+_cfg_file = resource_path("config.json")
+if not os.path.exists(_cfg_file):
+    _cfg_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+if os.path.exists(_cfg_file):
+    try:
+        with open(_cfg_file, "r", encoding="utf-8") as _f_cfg:
+            _loaded_cfg = json.load(_f_cfg)
+            if "api_url" in _loaded_cfg and _loaded_cfg["api_url"]:
+                API_BASE_URL = _loaded_cfg["api_url"]
+                log(f"URL de API cargada desde config.json: {API_BASE_URL}")
+    except Exception as _e_cfg:
+        log(f"No se pudo leer config.json: {_e_cfg}")
 MENSAJES_POLL_MS = 4000
 MENSAJES_MAX = 200
 
@@ -723,7 +753,7 @@ def detectar_solo_segunda_pantalla():
             monitores_activos.append(hMonitor)
             return True
         
-        MONITORENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_ulong, ctypes.c_ulong, ctypes.POINTER(ctypes.c_long), ctypes.c_ulong)
+        MONITORENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p, ctypes.POINTER(wintypes.RECT), wintypes.LPARAM)
         callback_func = MONITORENUMPROC(callback)
         user32.EnumDisplayMonitors(None, None, callback_func, 0)
         
@@ -1027,6 +1057,28 @@ class SeleniumManager:
         self.last_error = ""
         self._limpiar_perfiles_chrome_temp()
 
+        # 1. Intentar primero conexión directa HTTP (rápida y sin requerir navegador si el endpoint está disponible)
+        try:
+            import urllib.request
+            req_ping = urllib.request.Request(
+                f"{API_BASE_URL}?action=ping",
+                headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+            )
+            with urllib.request.urlopen(req_ping, timeout=4) as resp_ping:
+                raw_ping = resp_ping.read().decode('utf-8', errors='ignore')
+                if 'success' in raw_ping and '{' in raw_ping:
+                    self.ready = True
+                    self.direct_mode = True
+                    log("✓ Conexión directa HTTP exitosa (modo rápido activo)")
+                    return True
+        except Exception as e_direct:
+            log(f"Intento HTTP directo: {e_direct}. Intentando mediante navegador...")
+
+        if not SELENIUM_AVAILABLE:
+            self.last_error = "Selenium/ChromeDriver no está disponible y la conexión directa no respondió con éxito."
+            log(f"✗ {self.last_error}")
+            return False
+
         chrome_major = detectar_chrome_major_version()
 
         # Preferir headless "new" en Chrome moderno; fallback a headless "old" si falla.
@@ -1130,8 +1182,35 @@ class SeleniumManager:
         return False
 
     def api_call(self, action, datos=None):
-        if not self.ready or not self.driver:
-            return {'success': False, 'error': 'Driver no inicializado'}
+        if not self.ready:
+            return {'success': False, 'error': 'No conectado al servidor'}
+
+        # Si estamos en modo directo o si el driver no está disponible, usar HTTP directo
+        if getattr(self, 'direct_mode', False) or not self.driver:
+            try:
+                import urllib.request
+                url = f"{API_BASE_URL}?action={action}"
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    'Content-Type': 'application/json'
+                }
+                if datos:
+                    payload = json.dumps(datos).encode('utf-8')
+                    req = urllib.request.Request(url, data=payload, headers=headers, method='POST')
+                else:
+                    req = urllib.request.Request(url, headers=headers, method='GET')
+
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    raw = resp.read().decode('utf-8', errors='ignore').strip()
+                    if raw.startswith('<'):
+                        m = re.search(r'\{.*\}', raw, re.DOTALL)
+                        if m:
+                            raw = m.group()
+                    return json.loads(raw)
+            except Exception as e:
+                log_error(e)
+                if not self.driver:
+                    return {'success': False, 'error': str(e)}
 
         with self.lock:
             try:
@@ -5514,12 +5593,9 @@ if __name__ == "__main__":
             log(f"No se pudo mostrar mensaje de VM: {e}")
         sys.exit(1)
 
-    # Verificación de Selenium
+    # Verificación de Selenium / Conectividad
     if not SELENIUM_AVAILABLE:
-        root = tk.Tk()
-        root.withdraw()
-        messagebox.showerror("Error", "Falta selenium/undetected-chromedriver")
-        sys.exit(1)
+        log("⚠ Selenium no disponible. La aplicación operará en modo directo HTTP.")
 
     app = App()
     app.iniciar()
