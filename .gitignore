@@ -1,0 +1,31 @@
+# Credenciales y archivos sensibles
+db.php
+
+# Python y compilación
+__pycache__/
+*.py[cod]
+*$py.class
+*.spec.bak
+build/
+dist/
+.vs/
+*.sln.docstates
+
+# Archivos de subida dinámica
+uploads/*
+!uploads/.gitkeep
+uploads/apps/*
+!uploads/apps/.gitkeep
+
+# Logs y depuración
+*.log
+debug_examen.txt
+log_examen.txt
+log_seguridad_examen*.txt
+
+# Archivos del sistema operativo e IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+php_files.txt
