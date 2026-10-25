@@ -1,5 +1,5 @@
-# Credenciales y archivos sensibles
-db.php
+# Credenciales locales sensibles
+db.local.php
 
 # Python y compilación
 __pycache__/
