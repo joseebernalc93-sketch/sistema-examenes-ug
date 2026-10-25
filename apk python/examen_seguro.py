@@ -432,7 +432,7 @@ except:
 # =======================================================
 #  CONFIGURACIÓN
 # =======================================================
-DEFAULT_API_URL = "https://examensystem.infinityfree.me/api_examen.php"
+DEFAULT_API_URL = "https://sistema-examenes-ug.vercel.app/api_examen.php"
 API_BASE_URL = os.environ.get("EXAMEN_API_URL", DEFAULT_API_URL)
 
 # Cargar URL alternativa desde config.json si existe

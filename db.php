@@ -12,14 +12,20 @@ if (file_exists($local_config)) {
 $DB_HOST = $DB_HOST ?? (getenv('DB_HOST') ?: 'localhost');
 $DB_USER = $DB_USER ?? (getenv('DB_USER') ?: 'root');
 $DB_PASS = $DB_PASS ?? (getenv('DB_PASS') ?: '');
-$DB_NAME = $DB_NAME ?? (getenv('DB_NAME') ?: 'if0_40427719_examenes_sistem');
+$DB_NAME = $DB_NAME ?? (getenv('DB_NAME') ?: 'sistema_examenes_ug');
 $DB_PORT = (int)($DB_PORT ?? (getenv('DB_PORT') ?: 3306));
+$DB_SSL  = isset($DB_SSL) ? (bool)$DB_SSL : (getenv('DB_SSL') === 'true' || getenv('DB_SSL') === '1');
 
 try {
-    $conn = new mysqli($DB_HOST, $DB_USER, $DB_PASS, $DB_NAME, $DB_PORT);
+    $conn = mysqli_init();
+    if ($DB_SSL) {
+        $conn->ssl_set(NULL, NULL, NULL, NULL, NULL);
+    }
+    $conn->real_connect($DB_HOST, $DB_USER, $DB_PASS, $DB_NAME, $DB_PORT, NULL, $DB_SSL ? MYSQLI_CLIENT_SSL : 0);
     $conn->set_charset('utf8mb4');
 } catch (Throwable $e) {
     ini_set('display_errors', 1);
     error_log('DB ERROR: ' . $e->getMessage());
-    die('⚠ Error al conectar a MySQL: ' . $e->getMessage() . '<br>Si estás en Vercel, asegúrate de configurar las variables de entorno (DB_HOST, DB_USER, DB_PASS, DB_NAME).');
+    die('⚠ Error al conectar a la base de datos MySQL: ' . $e->getMessage() . '<br>Si estás en Vercel, asegúrate de configurar las variables de entorno (DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT).');
 }
+

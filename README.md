@@ -95,7 +95,7 @@ graph TD
 ├── revisar_examen.php           # Vista de revisión de exámenes contestados
 ├── estilos.php                  # Hojas de estilo unificadas y diseño visual UG
 ├── scripts.php                  # Librerías JavaScript comunes
-├── if0_40427719_examenes_sistem.sql # Estructura y volcado completo de la base de datos
+├── sistema_examenes_ug.sql          # Estructura y volcado completo de la base de datos MySQL
 ├── apk python/              # Código fuente de la app de escritorio en Python
 │   ├── examen_seguro.py         # Aplicación cliente completa con detector de seguridad
 │   ├── Imagenes/                # Íconos y logotipos oficiales de la UG
@@ -127,23 +127,23 @@ graph TD
 
 ### 2. Configurar la Base de Datos
 1. Abre **phpMyAdmin** (o tu gestor MySQL preferido).
-2. Crea una base de datos llamada `if0_40427719_examenes_sistem` (o el nombre que prefieras).
+2. Crea una base de datos llamada `sistema_examenes_ug`.
 3. Importa el archivo SQL incluido en la raíz:
    ```bash
-   mysql -u root -p if0_40427719_examenes_sistem < if0_40427719_examenes_sistem.sql
+   mysql -u root -p sistema_examenes_ug < sistema_examenes_ug.sql
    ```
 
 ### 3. Configurar la Conexión Web
-1. Copia el archivo `db.example.php` como `db.php`:
+1. Copia el archivo `db.example.php` como `db.local.php`:
    ```bash
-   cp db.example.php db.php
+   cp db.example.php db.local.php
    ```
-2. Edita `db.php` con tus credenciales locales:
+2. Edita `db.local.php` con tus credenciales locales o de tu base de datos cloud:
    ```php
    $DB_HOST = 'localhost';
    $DB_USER = 'root';
    $DB_PASS = '';
-   $DB_NAME = 'if0_40427719_examenes_sistem';
+   $DB_NAME = 'sistema_examenes_ug';
    ```
 
 ### 4. Ejecutar la Aplicación de Escritorio

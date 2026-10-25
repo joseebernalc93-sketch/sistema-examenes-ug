@@ -2,7 +2,7 @@
 -- version 4.9.0.1
 -- https://www.phpmyadmin.net/
 --
--- Servidor: sql310.infinityfree.com
+-- Servidor: localhost
 -- Tiempo de generación: 08-03-2026 a las 20:34:53
 -- Versión del servidor: 11.4.10-MariaDB
 -- Versión de PHP: 7.2.22
@@ -19,7 +19,7 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Base de datos: `if0_40427719_examenes_sistem`
+-- Base de datos: `sistema_examenes_ug`
 --
 
 -- --------------------------------------------------------
