@@ -41,9 +41,9 @@ Cambios de v9.6:
 import sys
 try:
     if hasattr(sys.stdout, 'reconfigure'):
-        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        getattr(sys.stdout, 'reconfigure')(encoding='utf-8', errors='replace')
     if hasattr(sys.stderr, 'reconfigure'):
-        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+        getattr(sys.stderr, 'reconfigure')(encoding='utf-8', errors='replace')
 except Exception:
     pass
 
@@ -370,6 +370,15 @@ def calcular_distribucion_simple(total_preguntas):
 # =======================================================
 #  IMPORTACIONES
 # =======================================================
+uc = None
+By = None
+keyboard = None
+get_monitors = None
+wmi = None
+Image = None
+ImageTk = None
+psutil = None
+
 SELENIUM_AVAILABLE = False
 try:
     import undetected_chromedriver as uc
@@ -853,10 +862,7 @@ if sys.platform == 'win32':
     VK_K = 0x4B
     VK_S = 0x53
 
-    try:
-        LRESULT = wintypes.LRESULT
-    except AttributeError:
-        LRESULT = ctypes.c_long
+    LRESULT = getattr(wintypes, 'LRESULT', ctypes.c_ssize_t)
 
     LowLevelKeyboardProc = ctypes.WINFUNCTYPE(
         LRESULT,
@@ -2130,8 +2136,9 @@ def cargar_imagen_base64(base64_str, max_width=500, max_height=300):
 #  APLICACIÓN
 # =======================================================
 class App:
+    root: tk.Tk
     def __init__(self):
-        self.root = None
+        self.root = None  # type: ignore
         self.frame_actual = None
         self.imagenes_cache = []
         self._app_icon_ref = None
@@ -5251,7 +5258,7 @@ class App:
                     new_bg = '#fff' if current_bg == color_fondo else color_fondo
                     notif_frame.config(bg=new_bg)
                     for child in notif_frame.winfo_children():
-                        child.config(bg=new_bg)
+                        child['background'] = new_bg
                     self.root.after(300, lambda: parpadear(count + 1))
                 except:
                     pass
