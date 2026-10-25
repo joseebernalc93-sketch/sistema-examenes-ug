@@ -29,3 +29,5 @@ Thumbs.db
 .vscode/
 .idea/
 php_files.txt
+
+.vercel
